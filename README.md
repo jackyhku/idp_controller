@@ -4,35 +4,30 @@ A modern, chatbot-style web application for communicating with ESP32 devices via
 
 ![ESP32 WebSerial Monitor](https://img.shields.io/badge/Browser-Chrome%20%7C%20Edge-blue)
 ![Web Serial API](https://img.shields.io/badge/Web%20Serial%20API-Supported-green)
+![Web Bluetooth API](https://img.shields.io/badge/Web%20Bluetooth%20API-Supported-lightblue)
 
 ## Features
+
+### 🔌 Dual Connection Modes
+- **Serial (USB / SPP 2.0)**: Connect via standard USB cable or Bluetooth Classic (HC-05 paired via OS).
+- **Bluetooth (BLE 4.0)**: Connect wirelessly to ESP32 BLE devices directly from the browser (no pairing needed).
 
 ### 🎨 Modern UI/UX
 - **Chatbot-inspired interface** with message bubbles
 - **Dark/Light theme** support with smooth transitions
 - **Responsive design** that works on desktop and tablet
 - **Collapsible sidebar** for clean, focused workspace
+- **Segmented Control** for easy mode switching
 
-### 🔧 Full Serial Control
-- Configure all serial parameters in the UI:
-  - Baud rate (with custom rate support)
-  - Data bits (7/8)
-  - Stop bits (1/2)
-  - Parity (None/Even/Odd)
-  - Flow control (None/Hardware)
-  - Line endings (None/LF/CR/CRLF)
+### 🔧 Full Serial/BLE Control
+- **Serial**: Configure Baud rate, Data bits, Parity, Flow control.
+- **Bluetooth**: Configurable Service/Characteristic UUIDs (Nordic UART default).
 - Save and load configuration profiles
 
 ### ⚡ Customizable Shortcuts
 - **Quick command buttons** at the top of the interface
 - **Fully customizable** - add, edit, delete, and reorder
-- Each button can have:
-  - Custom label and command
-  - Icon (emoji)
-  - Color
-  - Keyboard shortcut (Ctrl+1-9)
 - **Import/Export** button configurations as JSON
-- **Default shortcuts** included for common commands
 
 ### 💬 Chat-Style Communication
 - ESP32 messages displayed on the left (incoming)
@@ -40,6 +35,10 @@ A modern, chatbot-style web application for communicating with ESP32 devices via
 - Optional timestamps for all messages
 - Command history with arrow key navigation
 - Auto-scroll with manual override
+
+### 📡 Remote Monitoring (Optional)
+- Built-in Flask backend with Socket.IO support
+- Broadcast serial data to local server for remote inspection or logging
 
 ### 📊 Statistics & Monitoring
 - Real-time RX/TX byte counters
@@ -49,35 +48,24 @@ A modern, chatbot-style web application for communicating with ESP32 devices via
 
 ## Browser Requirements
 
-This application requires the **Web Serial API**, which is only available in:
-- **Google Chrome** version 89 or higher
-- **Microsoft Edge** version 89 or higher
+This application requires modern browser APIs:
 
-⚠️ **Not supported in Firefox or Safari**
+- **Web Serial API**: Chrome/Edge 89+
+- **Web Bluetooth API**: Chrome/Edge 56+
+
+⚠️ **Not supported in Firefox or Safari** due to missing hardware APIs.
 
 ## Getting Started
 
 ### 1. Setup the Web Application
 
-1. Clone or download this repository
-2. Open `index.html` in Chrome or Edge
-   - You can simply double-click the file or
-   - Use a local web server (recommended for development)
-
-**Using a local web server (optional but recommended):**
-
-```bash
-# Using Python
-python -m http.server 8000
-
-# Using Node.js http-server
-npx http-server
-
-# Using PHP
-php -S localhost:8000
-```
-
-Then open `http://localhost:8000` in Chrome/Edge.
+1. Clone this repository
+2. Run the backend server (optional, for remote monitoring):
+   ```bash
+   ./run.sh
+   ```
+3. Open `http://localhost:6011` in Chrome or Edge.
+   *Alternatively, just open `index.html` directly if you don't need the backend.*
 
 ### 2. Upload Test Program to ESP32
 
@@ -87,30 +75,28 @@ Then open `http://localhost:8000` in Chrome/Edge.
 
 ### 3. Connect and Test
 
-1. In the web app, click **"Select Port"**
-2. Choose your ESP32's COM port from the browser dialog
-3. Click **"Connect"** (default 115200 baud rate)
-4. You should see the ESP32's welcome message
-5. Try the shortcut buttons or type commands like:
-   - `ping` - Get a pong response
-   - `status` - View ESP32 system information
-   - `help` - See all available commands
-   - `led on` - Turn on the built-in LED
+1. **Select Connection Mode** in the sidebar:
+   - **Serial (USB / SPP 2.0)**: For USB devices or OS-paired HC-05 (Classic Bluetooth).
+   - **Bluetooth (BLE 4.0)**: For ESP32 BLE and other BLE peripherals.
+2. Click **"Select Port"** (or **"Scan Device"** for BLE).
+3. Choose your device from the browser dialog.
+4. Click **"Connect"**.
+5. Try the shortcut buttons or type commands like `ping`.
 
 ## Project Structure
 
-```
 WebSerial/
 ├── index.html              # Main HTML page
 ├── css/
 │   └── style.css          # All styling (light/dark themes)
 ├── js/
 │   ├── serial.js          # Web Serial API handler
+│   ├── bluetooth.js       # Web Bluetooth API handler
 │   ├── ui.js              # UI interaction logic
 │   ├── shortcuts.js       # Shortcut button management
 │   └── app.js             # Main application controller
 ├── ESP32_Test_Program.ino # Sample ESP32 test program
-├── plan.md                # Project plan and documentation
+├── copilot-instructions.md # Development guide
 └── README.md              # This file
 ```
 
@@ -228,10 +214,12 @@ else if (cmd == "mycommand") {
 
 ## Security Considerations
 
-- Web Serial API requires **user permission** for each port access
-- Must be served over **HTTPS** (localhost is exempt)
-- Port access requires **user gesture** (button click)
-- All data stays **client-side** - nothing is sent to a server
+- **Browser Permission**: Both Serial and Bluetooth APIs require user permission for each device access.
+- **HTTPS Required**: The APIs are only available in secure contexts (HTTPS or localhost).
+- **User Gesture**: Access request must be triggered by a user action (click).
+- **Data Privacy**: 
+  - Standard mode: All data stays client-side.
+  - Remote Monitoring: If the Flask server is running, data is sent to `localhost:6011`.
 
 ## Future Enhancements
 

@@ -14,11 +14,15 @@ class UIManager {
         this.lastMessageType = null;
         this.lastMessageTime = 0;
         this.lastMessageBubble = null;
+        this.lastMessageSource = null;
         this.messageGroupTimeout = 1000; // 1 second default
 
         this.initializeElements();
         this.loadPreferences();
         this.attachEventListeners();
+
+        // Stats tracking
+        this.stats = { rx: 0, tx: 0, startTime: null };
     }
 
     // Initialize DOM element references
@@ -27,7 +31,11 @@ class UIManager {
             // Header
             connectionStatus: document.getElementById('connectionStatus'),
             themeBtn: document.getElementById('themeBtn'),
+            headerBroadcastControls: document.getElementById('headerBroadcastControls'),
             settingsBtn: document.getElementById('settingsBtn'),
+            closeSettingsBtn: document.getElementById('closeSettingsBtn'),
+            closeSettingsModalBtn: document.getElementById('closeSettingsModalBtn'),
+            settingsModal: document.getElementById('settingsModal'),
             helpBtn: document.getElementById('helpBtn'),
 
             // Sidebar
@@ -49,10 +57,11 @@ class UIManager {
             saveProfileBtn: document.getElementById('saveProfileBtn'),
             loadProfileSelect: document.getElementById('loadProfileSelect'),
             deleteProfileBtn: document.getElementById('deleteProfileBtn'),
+            broadcastBtn: document.getElementById('broadcastBtn'),
 
             // Display Options
-            showTimestamps: document.getElementById('showTimestamps'),
-            autoScroll: document.getElementById('autoScroll'),
+            timestampsBtn: document.getElementById('timestampsBtn'),
+            autoScrollBtn: document.getElementById('autoScrollBtn'),
             displayFormat: document.getElementById('displayFormat'),
 
             // Statistics
@@ -84,6 +93,14 @@ class UIManager {
         // Theme toggle
         this.elements.themeBtn.addEventListener('click', () => this.toggleTheme());
 
+        // Settings toggle
+        this.elements.settingsBtn.addEventListener('click', () => this.toggleSettings());
+        this.elements.closeSettingsBtn.addEventListener('click', () => this.toggleSettings());
+        this.elements.closeSettingsModalBtn.addEventListener('click', () => this.toggleSettings());
+        this.elements.settingsModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.settingsModal) this.toggleSettings();
+        });
+
         // Sidebar toggle
         this.elements.sidebarToggle.addEventListener('click', () => this.toggleSidebar());
 
@@ -98,13 +115,16 @@ class UIManager {
         });
 
         // Display options
-        this.elements.showTimestamps.addEventListener('change', (e) => {
-            this.showTimestamps = e.target.checked;
+        // Display options
+        this.elements.timestampsBtn.addEventListener('click', () => {
+            this.showTimestamps = !this.showTimestamps;
+            this.toggleButtonState(this.elements.timestampsBtn, this.showTimestamps);
             this.savePreferences();
         });
 
-        this.elements.autoScroll.addEventListener('change', (e) => {
-            this.autoScroll = e.target.checked;
+        this.elements.autoScrollBtn.addEventListener('click', () => {
+            this.autoScroll = !this.autoScroll;
+            this.toggleButtonState(this.elements.autoScrollBtn, this.autoScroll);
             this.savePreferences();
         });
 
@@ -187,7 +207,78 @@ class UIManager {
         statusText.textContent = message || statusMessages[status] || `Server: ${status}`;
     }
 
-    // Update port information display
+    // Update UI based on connection mode
+    updateModeUI(mode) {
+        const modeTitle = document.getElementById('modeTitle');
+        const selectBtnText = document.getElementById('selectBtnText');
+        const selectPortBtn = document.getElementById('selectPortBtn');
+        const remoteConfigSection = document.getElementById('remoteConfigSection');
+        const headerBroadcastControls = document.getElementById('headerBroadcastControls');
+
+        // Update Segmented Control State
+        const btns = document.querySelectorAll('.segmented-btn');
+        btns.forEach(btn => {
+            if (btn.dataset.mode === mode) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+
+        if (mode === 'serial') {
+            modeTitle.textContent = 'Serial / SPP 2.0';
+            selectPortBtn.style.display = 'flex';
+            selectBtnText.textContent = 'Select Port';
+            // if (serialConfigSection) serialConfigSection.style.display = 'block'; // Moved to Settings Modal
+            if (remoteConfigSection) remoteConfigSection.style.display = 'none';
+            if (headerBroadcastControls) headerBroadcastControls.style.display = 'flex';
+            // if (broadcastSection) broadcastSection.style.display = 'block'; // Moved to Header
+            const formatSelector = document.getElementById('formatSelectorContainer');
+            if (formatSelector) formatSelector.style.display = 'block';
+            this.enableConnectButton(false); // disable until port selected
+        } else if (mode === 'bluetooth') {
+            modeTitle.textContent = 'Bluetooth (BLE 4.0)';
+            selectPortBtn.style.display = 'flex';
+            selectBtnText.textContent = 'Scan Device';
+            // if (serialConfigSection) serialConfigSection.style.display = 'none';
+            if (remoteConfigSection) remoteConfigSection.style.display = 'none';
+            if (headerBroadcastControls) headerBroadcastControls.style.display = 'flex';
+            // if (broadcastSection) broadcastSection.style.display = 'block'; // Moved to Header
+            this.enableConnectButton(false); // disable until device selected
+        } else {
+            modeTitle.textContent = 'Remote Monitor';
+            selectPortBtn.style.display = 'none'; // No "Select Port" needed
+            // if (serialConfigSection) serialConfigSection.style.display = 'none';
+            if (remoteConfigSection) remoteConfigSection.style.display = 'block';
+            if (headerBroadcastControls) headerBroadcastControls.style.display = 'none';
+            // if (broadcastSection) broadcastSection.style.display = 'none'; // Moved to Header
+            // Hide format selector in remote mode
+            const formatSelector = document.getElementById('formatSelectorContainer');
+            if (formatSelector) formatSelector.style.display = 'none';
+
+            // Enable connect button if socket is ready (handled by logic)
+            this.enableConnectButton(true);
+            this.elements.connectBtn.querySelector('span')
+                ? this.elements.connectBtn.querySelector('span').textContent = 'Connect' // Fallback
+                : this.elements.connectBtn.innerHTML = this.getConnectBtnHTML('Connect');
+        }
+
+        // Reset port/device info
+        this.elements.portInfo.style.display = 'none';
+
+        // Don't reset connection state immediately, let App handle logic
+    }
+
+    getConnectBtnHTML(text) {
+        return `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+            </svg>
+            ${text}
+        `;
+    }
+
+    // Update port/device information display
     updatePortInfo(info) {
         if (info) {
             this.elements.portInfo.style.display = 'block';
@@ -195,6 +286,29 @@ class UIManager {
                 <strong>Port Info:</strong><br>
                 Vendor ID: ${info.usbVendorId}<br>
                 Product ID: ${info.usbProductId}
+            `;
+        } else {
+            this.elements.portInfo.style.display = 'none';
+        }
+    }
+
+    // Update session ID display
+    updateSessionId(id) {
+        const el = document.getElementById('mySessionId');
+        const container = document.getElementById('sessionInfo');
+        if (el && id) {
+            el.textContent = id;
+            container.style.display = 'block';
+        }
+    }
+    // Update Bluetooth device information
+    updateDeviceInfo(info) {
+        if (info) {
+            this.elements.portInfo.style.display = 'block';
+            this.elements.portInfo.innerHTML = `
+                <strong>Device Info:</strong><br>
+                Name: ${info.name}<br>
+                ID: ${info.id.substring(0, 8)}...
             `;
         } else {
             this.elements.portInfo.style.display = 'none';
@@ -230,17 +344,27 @@ class UIManager {
     }
 
     // Append message to chat
-    appendMessage(content, type = 'received', rawBytes = null) {
+    appendMessage(content, type = 'received', rawBytes = null, source = null) {
         const now = Date.now();
         const timeSinceLastMessage = now - this.lastMessageTime;
 
         // Check if we should group this message with the previous one
-        const shouldGroup = (
+        // Check if we should group this message with the previous one
+        let canGroup = (
             type === this.lastMessageType &&
             type !== 'system' &&
             timeSinceLastMessage < this.messageGroupTimeout &&
             this.lastMessageBubble !== null
         );
+
+        // For broadcast messages, only group if source matches
+        if (canGroup && type === 'broadcast') {
+            if (this.lastMessageSource !== source) {
+                canGroup = false;
+            }
+        }
+
+        const shouldGroup = canGroup;
 
         if (shouldGroup) {
             // Append to existing message bubble
@@ -269,8 +393,26 @@ class UIManager {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
 
+            // Add Source Label for broadcasts
+            if (type === 'broadcast' && source) {
+                const sourceLabel = document.createElement('div');
+                sourceLabel.className = 'message-source';
+                sourceLabel.innerHTML = `From: <strong>${source}</strong>`;
+                sourceLabel.style.fontSize = '11px';
+                sourceLabel.style.marginBottom = '2px';
+                sourceLabel.style.opacity = '0.7';
+                messageDiv.appendChild(sourceLabel);
+            }
+
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
+
+            // Highlight broadcast bubbles
+            if (type === 'broadcast') {
+                bubbleDiv.style.backgroundColor = 'var(--bg-tertiary)';
+                bubbleDiv.style.color = 'var(--text-primary)';
+                bubbleDiv.style.border = '1px solid var(--border-color)';
+            }
 
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
@@ -303,6 +445,7 @@ class UIManager {
 
         // Update tracking variables
         this.lastMessageType = type;
+        this.lastMessageSource = source; // Track source for grouping broadcasts
         this.lastMessageTime = now;
 
         // Auto-scroll if enabled
@@ -486,16 +629,66 @@ class UIManager {
         this.showNotification(`${this.theme === 'dark' ? 'Dark' : 'Light'} theme activated`, 'info');
     }
 
+    // Toggle Settings Modal
+    toggleSettings() {
+        const modal = this.elements.settingsModal;
+        if (modal.style.display === 'flex') {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        } else {
+            modal.style.display = 'flex';
+            // document.body.style.overflow = 'hidden'; // Keep body scrolling if needed, or lock it
+
+            // Populate profile list when opening
+            this.updateProfileList(this.elements.loadProfileSelect);
+        }
+    }
+
+
     // Toggle sidebar
     toggleSidebar() {
         this.elements.sidebar.classList.toggle('collapsed');
     }
 
-    // Update statistics
-    updateStats(stats) {
-        this.elements.rxBytes.textContent = SerialManager.formatBytes(stats.bytesReceived);
-        this.elements.txBytes.textContent = SerialManager.formatBytes(stats.bytesSent);
-        this.elements.uptime.textContent = SerialManager.formatUptime(stats.uptime);
+    // Reset statistics
+    resetStats() {
+        this.stats = { rx: 0, tx: 0, startTime: Date.now() };
+        this.updateStatsDisplay();
+    }
+
+    // Add to RX stats
+    addToRxStats(bytes) {
+        this.stats.rx += bytes;
+        this.updateStatsDisplay();
+    }
+
+    // Add to TX stats
+    addToTxStats(bytes) {
+        this.stats.tx += bytes;
+        this.updateStatsDisplay();
+    }
+
+    // Update statistics (can sync with external source)
+    updateStats(info) {
+        if (info) {
+            this.stats.rx = info.bytesReceived;
+            this.stats.tx = info.bytesSent;
+        }
+        this.updateStatsDisplay();
+    }
+
+    // Update statistics display
+    updateStatsDisplay() {
+        if (typeof SerialManager !== 'undefined') {
+            this.elements.rxBytes.textContent = SerialManager.formatBytes(this.stats.rx);
+            this.elements.txBytes.textContent = SerialManager.formatBytes(this.stats.tx);
+
+            // For uptime, we use the local startTime
+            if (this.stats.startTime) {
+                const uptime = Date.now() - this.stats.startTime;
+                this.elements.uptime.textContent = SerialManager.formatUptime(uptime);
+            }
+        }
     }
 
     // Show notification
@@ -601,11 +794,25 @@ class UIManager {
             }
 
             // Update UI
-            this.elements.showTimestamps.checked = this.showTimestamps;
-            this.elements.autoScroll.checked = this.autoScroll;
+            this.toggleButtonState(this.elements.timestampsBtn, this.showTimestamps);
+            this.toggleButtonState(this.elements.autoScrollBtn, this.autoScroll);
             this.elements.displayFormat.value = this.displayFormat;
         }
     }
+
+    // Helper to toggle button state
+    toggleButtonState(button, isActive) {
+        if (isActive) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    }
+
+    setBroadcastEnabled(enabled) {
+        this.toggleButtonState(this.elements.broadcastBtn, enabled);
+    }
+
 
     // Load profile
     loadProfile(profileName) {

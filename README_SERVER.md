@@ -9,7 +9,7 @@ Python Flask backend server for the ESP32 WebSerial Monitor web application.
 - ✅ WebSocket support for real-time communication
 - ✅ CORS enabled for development
 - ✅ Health check endpoint
-- ✅ Configurable port (default: 6010)
+- ✅ Configurable port (default: 6011)
 
 ## Quick Start
 
@@ -36,7 +36,7 @@ python3 server.py
 
 Once the server is running, open your browser and navigate to:
 ```
-http://localhost:6010
+http://localhost:6011
 ```
 
 ## API Endpoints
@@ -62,7 +62,7 @@ http://localhost:6010
 ## Configuration
 
 Edit `config.js` to modify:
-- Server port (default: 6010)
+- Server port (default: 6011)
 - WebSocket settings
 - Serial port defaults
 - UI preferences

@@ -1,3 +1,65 @@
+// Remote Manager - Handles remote session monitoring
+class RemoteManager {
+    constructor(app) {
+        this.app = app;
+        this.isConnected = false;
+        this.startTime = null;
+        this.bytesReceived = 0;
+        this.bytesSent = 0;
+    }
+
+    async connect(targetId) {
+        if (!this.app.socket || !this.app.socket.connected) {
+            throw new Error('Not connected to server');
+        }
+
+        console.log('Subscribing to session:', targetId);
+        this.targetId = targetId;
+        this.app.socket.emit('subscribe', targetId);
+
+        this.isConnected = true;
+        this.startTime = Date.now();
+        this.bytesReceived = 0;
+
+        // Notify App of connection change
+        this.app.handleConnectionChange(true);
+        this.app.uiManager.appendSystemMessage(`Subscribed to session ${targetId}`, true);
+    }
+
+    async disconnect() {
+        this.isConnected = false;
+        this.app.handleConnectionChange(false);
+    }
+
+    async write(data, addLineEnding = '') {
+        if (!this.isConnected) {
+            throw new Error('Not connected to remote session');
+        }
+
+        if (!this.targetId) {
+            throw new Error('Target session ID not found');
+        }
+
+        const dataToSend = data + addLineEnding;
+
+        // Emit to server to forward to device
+        this.app.socket.emit('remote_data', {
+            target: this.targetId,
+            data: dataToSend
+        });
+
+        this.bytesSent += dataToSend.length;
+    }
+
+    getStats() {
+        return {
+            bytesReceived: this.bytesReceived,
+            bytesSent: this.bytesSent,
+            uptime: this.startTime ? Date.now() - this.startTime : 0
+        };
+    }
+}
+
 // Main Application Controller
 class App {
     constructor() {
@@ -7,6 +69,10 @@ class App {
         this.statsInterval = null;
         this.isAutoReconnecting = false;
         this.socket = null;
+
+        this.mySessionId = null;
+        this.broadcastEnabled = false;
+        this.broadcastBuffer = '';
 
         this.init();
     }
@@ -21,6 +87,12 @@ class App {
 
         // Initialize managers
         this.serialManager = new SerialManager();
+        this.bluetoothManager = new BluetoothManager();
+        this.remoteManager = new RemoteManager(this);
+        this.activeMode = 'serial'; // 'serial', 'bluetooth', or 'remote'
+
+        this.activeManager = this.serialManager;
+
         this.uiManager = new UIManager();
         this.shortcutsManager = new ShortcutsManager();
 
@@ -32,6 +104,7 @@ class App {
 
         // Setup event handlers
         this.setupSerialHandlers();
+        this.setupBluetoothHandlers();
         this.setupUIHandlers();
         this.setupShortcutHandlers();
 
@@ -47,17 +120,18 @@ class App {
         // Try to auto-reconnect to previous port
         await this.tryAutoReconnect();
 
+        // Default to Serial mode UI
+        this.uiManager.updateModeUI(this.activeMode);
+
         console.log('ESP32 WebSerial Monitor initialized');
     }
 
     // Initialize Socket.IO connection
     initSocket() {
         if (!CONFIG.websocket.enabled || typeof io === 'undefined') {
-            console.log('Socket.IO not enabled or not loaded');
             return;
         }
 
-        console.log('Initializing Socket.IO connection...');
         this.uiManager.updateServerStatus('connecting');
 
         try {
@@ -66,27 +140,49 @@ class App {
             });
 
             this.socket.on('connect', () => {
-                console.log('Socket connected');
                 this.uiManager.updateServerStatus('connected');
             });
 
+            this.socket.on('connection_response', (data) => {
+                this.mySessionId = data.session_id;
+                this.uiManager.updateSessionId(this.mySessionId);
+                console.log('My Session ID:', this.mySessionId);
+            });
+
             this.socket.on('disconnect', () => {
-                console.log('Socket disconnected');
                 this.uiManager.updateServerStatus('disconnected');
             });
 
-            this.socket.on('connect_error', (error) => {
-                console.error('Socket connection error:', error);
-                this.uiManager.updateServerStatus('error');
+            this.socket.on('system_message', (data) => {
+                this.uiManager.appendSystemMessage(data.message, true);
             });
 
-            this.socket.on('serial_data_broadcast', (data) => {
-                // Display broadcast data
-                this.uiManager.appendMessage(data, 'broadcast');
+            this.socket.on('serial_data_broadcast', (payload) => {
+                if (this.activeMode === 'remote' && this.remoteManager.isConnected) {
+                    const data = typeof payload === 'object' ? payload.data : payload;
+                    const source = typeof payload === 'object' ? payload.source : 'Unknown';
+                    this.uiManager.appendMessage(data, 'broadcast', null, source);
+                    this.remoteManager.bytesReceived += data.length;
+                }
+            });
+
+            this.socket.on('remote_data_broadcast', async (payload) => {
+                // If we are the sender (Serial/Bluetooth mode) and receive a remote command
+                // We should write it to the device
+                if ((this.activeMode === 'serial' || this.activeMode === 'bluetooth') && this.activeManager.isConnected) {
+                    try {
+                        const data = typeof payload === 'object' ? payload.data : payload;
+                        console.log('Received remote command:', data);
+
+                        // Write to device
+                        await this.activeManager.write(data);
+                    } catch (error) {
+                        console.error('Error executing remote command:', error);
+                    }
+                }
             });
         } catch (error) {
             console.error('Error initializing socket:', error);
-            this.uiManager.updateServerStatus('error');
         }
     }
 
@@ -94,49 +190,140 @@ class App {
     setupSerialHandlers() {
         // Data received callback
         this.serialManager.onDataReceived = (text, rawBytes) => {
-            this.uiManager.appendMessage(text, 'received', rawBytes);
-
-            // Broadcast to server
-            if (this.socket && this.socket.connected) {
-                this.socket.emit('serial_data', text);
+            if (this.activeMode === 'serial') {
+                this.handleDataReceived(text);
             }
         };
 
         // Connection change callback
         this.serialManager.onConnectionChange = (connected) => {
-            if (connected) {
-                this.uiManager.updateConnectionStatus('connected');
-                this.uiManager.updateConnectButton(true);
-                this.uiManager.appendSystemMessage('Connected to ESP32', false);
-                this.startStatsUpdater();
-            } else {
-                this.uiManager.updateConnectionStatus('disconnected');
-                this.uiManager.updateConnectButton(false);
-                this.uiManager.appendSystemMessage('Disconnected from ESP32', false);
-                this.stopStatsUpdater();
+            if (this.activeMode === 'serial') {
+                this.handleConnectionChange(connected);
             }
         };
 
         // Error callback
         this.serialManager.onError = (error) => {
-            // Only show error notifications if not during auto-reconnect
-            if (!this.isAutoReconnecting) {
-                console.error('Serial error:', error);
-                this.uiManager.showNotification(`Error: ${error.message}`, 'error');
-                this.uiManager.updateConnectionStatus('error', error.message);
-            } else {
-                // Just log during auto-reconnect
-                console.log('Connection attempt during auto-reconnect:', error.message);
+            if (this.activeMode === 'serial') {
+                this.handleError(error);
             }
         };
     }
 
+    // Setup bluetooth manager event handlers
+    setupBluetoothHandlers() {
+        this.bluetoothManager.onDataReceived = (text, rawBytes) => {
+            if (this.activeMode === 'bluetooth') {
+                this.handleDataReceived(text);
+            }
+        };
+
+        this.bluetoothManager.onConnectionChange = (connected) => {
+            if (this.activeMode === 'bluetooth') {
+                this.handleConnectionChange(connected);
+            }
+        };
+
+        this.bluetoothManager.onError = (error) => {
+            if (this.activeMode === 'bluetooth') {
+                this.handleError(error);
+            }
+        };
+    }
+
+    // Common data received handler
+    handleDataReceived(data) {
+        this.uiManager.appendMessage(data, 'received');
+        this.uiManager.addToRxStats(data.length);
+
+        // Broadcast if enabled
+        if (this.socket && this.socket.connected && this.broadcastEnabled) {
+            // Buffer data for broadcasting to ensure complete lines are sent
+            this.broadcastBuffer += data;
+
+            if (this.broadcastBuffer.includes('\n')) {
+                const lines = this.broadcastBuffer.split('\n');
+                // Keep the last chunk as it might be incomplete
+                this.broadcastBuffer = lines.pop();
+
+                // Emit all complete lines
+                for (const line of lines) {
+                    // Send with newline to maintain formatting
+                    this.socket.emit('serial_data', line + '\n');
+                }
+            }
+        }
+    }
+
+    // Common connection change handler
+    handleConnectionChange(connected) {
+        if (connected) {
+            this.uiManager.updateConnectionStatus('connected');
+            this.uiManager.updateConnectButton(true);
+            const deviceName = this.activeMode === 'serial' ? 'Serial Device' : 'Bluetooth Device';
+            this.uiManager.appendSystemMessage(`Connected to ${deviceName}`, false);
+            this.uiManager.resetStats();
+            this.startStatsUpdater();
+        } else {
+            this.uiManager.updateConnectionStatus('disconnected');
+            this.uiManager.updateConnectButton(false);
+            const deviceName = this.activeMode === 'serial' ? 'Serial Device' : 'Bluetooth Device';
+            this.uiManager.appendSystemMessage(`Disconnected from ${deviceName}`, false);
+            this.stopStatsUpdater();
+        }
+    }
+
+    // Common error handler
+    handleError(error) {
+        // Only show error notifications if not during auto-reconnect (for serial)
+        if (this.activeMode === 'serial' && this.isAutoReconnecting) {
+            console.log('Connection attempt during auto-reconnect:', error.message);
+            return;
+        }
+
+        console.error(`${this.activeMode} error:`, error);
+        this.uiManager.showNotification(`Error: ${error.message}`, 'error');
+        this.uiManager.updateConnectionStatus('error', error.message);
+    }
+
     // Setup UI event handlers
     setupUIHandlers() {
-        // Select port button
+        // Select port/device button
         this.uiManager.elements.selectPortBtn.addEventListener('click', async () => {
-            await this.handleSelectPort();
+            await this.handleSelectDevice();
         });
+
+        // Connection Mode Toggle (Segmented Control)
+        const segmentedBtns = document.querySelectorAll('.segmented-btn');
+        segmentedBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                this.setConnectionMode(mode);
+            });
+        });
+
+        // Broadcast Toggle
+        const broadcastBtn = this.uiManager.elements.broadcastBtn;
+        if (broadcastBtn) {
+            broadcastBtn.addEventListener('click', () => {
+                this.broadcastEnabled = !this.broadcastEnabled;
+                this.uiManager.setBroadcastEnabled(this.broadcastEnabled); // Helper we added to UI
+
+                // Trigger connection logic if needed, or just update UI
+                if (this.broadcastEnabled) {
+                    this.socket.emit('create_session'); // Ensure session exists
+                }
+
+                const status = this.broadcastEnabled ? 'enabled' : 'disabled';
+                this.uiManager.showNotification(`Remote Broadcast ${status}`, 'info');
+
+                // If disabled, maybe hide session info immediately or keep it? 
+                // Previous logic didn't explicitly clear it, but UI updates might handle it.
+                if (!this.broadcastEnabled) {
+                    this.uiManager.updateSessionId(null); // Hide it
+                }
+            });
+        }
 
         // Connect/Disconnect button
         this.uiManager.elements.connectBtn.addEventListener('click', async () => {
@@ -177,19 +364,58 @@ class App {
         };
     }
 
-    // Handle port selection
-    async handleSelectPort() {
-        try {
-            await this.serialManager.requestPort();
-            const portInfo = this.serialManager.getPortInfo();
-            this.uiManager.updatePortInfo(portInfo);
-            this.uiManager.enableConnectButton();
-            this.uiManager.showNotification('Port selected successfully', 'success');
+    // Set connection mode
+    async setConnectionMode(mode) {
+        if (this.activeMode === mode) return;
 
-            // Save port info for auto-reconnect
-            this.savePortInfo(portInfo);
+        // Disconnect current if connected
+        if (this.activeManager.isConnected) {
+            await this.activeManager.disconnect();
+        }
+
+        this.activeMode = mode;
+
+        if (mode === 'serial') {
+            this.activeManager = this.serialManager;
+        } else if (mode === 'bluetooth') {
+            this.activeManager = this.bluetoothManager;
+        } else {
+            this.activeManager = this.remoteManager;
+        }
+
+        // Update UI
+        this.uiManager.updateModeUI(mode);
+
+        if (mode === 'serial') {
+            this.uiManager.appendSystemMessage('Switched to Serial / SPP 2.0 mode', false);
+            this.uiManager.appendSystemMessage('ℹ️ For SPP 2.0 (HC-05): Pair in OS settings first, then select the COM/TTY port here.', false);
+        } else if (mode === 'bluetooth') {
+            this.uiManager.appendSystemMessage('Switched to Bluetooth (BLE 4.0) mode', false);
+        } else {
+            this.uiManager.appendSystemMessage('Switched to Remote Monitor mode', false);
+            this.uiManager.appendSystemMessage('ℹ️ Listening for broadcasts from other devices...', false);
+        }
+    }
+
+    // Handle device selection (Serial Port or Bluetooth Device)
+    async handleSelectDevice() {
+        try {
+            if (this.activeMode === 'serial') {
+                await this.serialManager.requestPort();
+                const portInfo = this.serialManager.getPortInfo();
+                this.uiManager.updatePortInfo(portInfo);
+                this.uiManager.enableConnectButton();
+                this.uiManager.showNotification('Port selected successfully', 'success');
+                this.savePortInfo(portInfo);
+            } else {
+                await this.bluetoothManager.requestDevice();
+                const deviceInfo = this.bluetoothManager.getDeviceInfo();
+                this.uiManager.updateDeviceInfo(deviceInfo);
+                this.uiManager.enableConnectButton();
+                this.uiManager.showNotification('Device selected successfully', 'success');
+            }
         } catch (error) {
-            if (error.message !== 'No port selected') {
+            if (error.message !== 'No port selected' && error.message !== 'No device selected') {
                 this.uiManager.showNotification(error.message, 'error');
             }
         }
@@ -291,20 +517,48 @@ class App {
 
     // Handle connect/disconnect toggle
     async handleConnectToggle() {
-        if (this.serialManager.isConnected) {
+        if (this.activeMode === 'remote') {
+            if (this.activeManager.isConnected) {
+                this.activeManager.disconnect();
+            } else {
+                const targetId = document.getElementById('targetSessionId').value.trim();
+                if (!targetId) {
+                    this.uiManager.showNotification('Please enter a Target Session ID', 'warning');
+                    return;
+                }
+                this.activeManager.connect(targetId);
+            }
+            return;
+        }
+
+        if (this.activeManager.isConnected) {
             // Disconnect
-            await this.serialManager.disconnect();
+            await this.activeManager.disconnect();
         } else {
             // Connect
             try {
-                if (!this.serialManager.port) {
+                if (this.activeMode === 'serial' && !this.serialManager.port) {
                     this.uiManager.showNotification('Please select a port first', 'warning');
                     return;
                 }
 
+                if (this.activeMode === 'bluetooth' && !this.bluetoothManager.device) {
+                    this.uiManager.showNotification('Please scan for a device first', 'warning');
+                    return;
+                }
+
                 this.uiManager.updateConnectionStatus('connecting');
-                const config = this.uiManager.getSerialConfig();
-                await this.serialManager.connect(config);
+
+                // Get config based on mode
+                let config = {};
+                if (this.activeMode === 'serial') {
+                    config = this.uiManager.getSerialConfig();
+                } else {
+                    // Get bluetooth config if we had UI for it, otherwise use defaults
+                    config = this.bluetoothManager.config;
+                }
+
+                await this.activeManager.connect(config);
             } catch (error) {
                 this.uiManager.updateConnectionStatus('error');
 
@@ -344,7 +598,7 @@ class App {
 
     // Handle send command
     async handleSendCommand() {
-        if (!this.serialManager.isConnected) {
+        if (!this.activeManager.isConnected) {
             this.uiManager.showNotification('Not connected to a device', 'warning');
             return;
         }
@@ -356,7 +610,7 @@ class App {
 
         try {
             const lineEnding = this.uiManager.getLineEnding();
-            await this.serialManager.write(command);
+            await this.activeManager.write(command, lineEnding);
 
             // Add to UI
             this.uiManager.appendMessage(command, 'sent');
@@ -373,14 +627,14 @@ class App {
 
     // Execute shortcut command
     async executeShortcutCommand(command) {
-        if (!this.serialManager.isConnected) {
+        if (!this.activeManager.isConnected) {
             this.uiManager.showNotification('Not connected to a device', 'warning');
             return;
         }
 
         try {
             const lineEnding = this.uiManager.getLineEnding();
-            await this.serialManager.write(command);
+            await this.activeManager.write(command, lineEnding);
 
             // Add to UI
             this.uiManager.appendMessage(command, 'sent');
@@ -397,7 +651,7 @@ class App {
     // Start statistics updater
     startStatsUpdater() {
         this.statsInterval = setInterval(() => {
-            const stats = this.serialManager.getStats();
+            const stats = this.activeManager.getStats();
             this.uiManager.updateStats(stats);
         }, 1000);
     }

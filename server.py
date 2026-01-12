@@ -6,10 +6,12 @@ Serves static files and provides API endpoints
 
 from flask import Flask, send_from_directory, jsonify, request
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import os
 import json
 import logging
+import random
+import string
 from datetime import datetime
 
 # Load configuration
@@ -33,8 +35,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Store connected clients
-connected_clients = set()
+# Map: sid -> { 'session_id': str, 'role': str }
+clients = {}
 
+def generate_session_id():
+    """Generate a short unique session ID"""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 @app.route('/')
 def index():
@@ -76,7 +82,7 @@ def get_status():
     """API endpoint to get server status"""
     return jsonify({
         'status': 'online',
-        'connected_clients': len(connected_clients),
+        'connected_clients': len(clients),
         'timestamp': datetime.now().isoformat()
     })
 
@@ -91,12 +97,23 @@ def health_check():
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection"""
-    client_id = request.sid
-    connected_clients.add(client_id)
-    logger.info(f'Client connected: {client_id}')
+    client_sid = request.sid
+    session_id = generate_session_id()
+    
+    clients[client_sid] = {
+        'session_id': session_id,
+        'ip': request.remote_addr
+    }
+    
+    # Auto-join a room for this session (so monitors can subscribe to it)
+    join_room(f"session_{session_id}")
+    
+    logger.info(f'Client connected: {client_sid} (Session: {session_id})')
+    
     emit('connection_response', {
         'status': 'connected',
-        'client_id': client_id,
+        'client_id': client_sid,
+        'session_id': session_id,
         'timestamp': datetime.now().isoformat()
     })
 
@@ -104,17 +121,70 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     """Handle client disconnection"""
-    client_id = request.sid
-    connected_clients.discard(client_id)
-    logger.info(f'Client disconnected: {client_id}')
+    client_sid = request.sid
+    if client_sid in clients:
+        session_id = clients[client_sid]['session_id']
+        logger.info(f'Client disconnected: {client_sid} (Session: {session_id})')
+        del clients[client_sid]
+
+
+@socketio.on('subscribe')
+def handle_subscribe(target_session_id):
+    """Monitor client subscribing to a target sender"""
+    # Join the room 'session_<target_id>' to receive broadcasts from that sender
+    join_room(f"session_{target_session_id}")
+    logger.info(f'Client {clients.get(request.sid, {}).get("session_id")} subscribed to {target_session_id}')
+    emit('system_message', {'message': f'Subscribed to session {target_session_id}'})
 
 
 @socketio.on('serial_data')
 def handle_serial_data(data):
-    """Handle serial data from client and broadcast to others"""
-    logger.info(f'Received serial data: {data}')
-    # Broadcast to all connected clients except sender
-    emit('serial_data_broadcast', data, broadcast=True, include_self=False)
+    """Handle serial data from client and broadcast to subscribers"""
+    client_sid = request.sid
+    if client_sid not in clients:
+        return
+
+    sender_info = clients[client_sid]
+    session_id = sender_info['session_id']
+    
+    logger.info(f'Received serial data from {session_id}: {data}')
+    
+    # Create enrichment payload
+    payload = {
+        'source': session_id,
+        'data': data,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    # Broadcast ONLY to room associated with this sender
+    emit('serial_data_broadcast', payload, to=f"session_{session_id}", include_self=False)
+
+
+@socketio.on('remote_data')
+def handle_remote_data(data):
+    """Handle data sent from a monitor to a device"""
+    # data should contain: { target: 'SESSION_ID', data: 'COMMAND' }
+    client_sid = request.sid
+    if client_sid not in clients:
+        return
+
+    target_session_id = data.get('target')
+    command = data.get('data')
+    
+    if not target_session_id or not command:
+        return
+        
+    logger.info(f'Remote command from {clients[client_sid]["session_id"]} to {target_session_id}: {command}')
+    
+    # Broadcast to the target session room
+    # The device (sender) is in this room and should listen for this event
+    payload = {
+        'source': clients[client_sid]['session_id'],
+        'data': command,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    emit('remote_data_broadcast', payload, to=f"session_{target_session_id}", include_self=False)
 
 
 @socketio.on('message')

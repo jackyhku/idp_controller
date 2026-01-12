@@ -1,5 +1,5 @@
 /*
- * ESP32 WebSerial Test Program
+ * ESP32 WebSerial Test Program - Non-Blocking Version
  * 
  * This is a simple test program for the ESP32 WebSerial Monitor.
  * Upload this to your ESP32 to test the web interface.
@@ -8,11 +8,24 @@
  * - Echo commands back to serial
  * - Respond to specific commands (ping, status, help, reset)
  * - Send periodic messages
+ * - Non-blocking LED blink animation
  */
 
 const int LED_PIN = 2; // Built-in LED on most ESP32 boards
 unsigned long lastMessageTime = 0;
 const unsigned long MESSAGE_INTERVAL = 5000; // 5 seconds
+
+// Non-blocking LED blink variables
+bool isBlinking = false;
+int blinkCount = 0;
+int blinkTarget = 0;
+unsigned long lastBlinkTime = 0;
+const unsigned long BLINK_INTERVAL = 200;
+bool ledState = false;
+
+// Reset timer
+bool resetPending = false;
+unsigned long resetTime = 0;
 
 void setup() {
   // Initialize serial communication
@@ -28,6 +41,7 @@ void setup() {
   // Send startup message
   Serial.println("========================================");
   Serial.println("ESP32 WebSerial Test Program");
+  Serial.println("Non-Blocking Version");
   Serial.println("========================================");
   Serial.println("Ready to receive commands!");
   Serial.println("Type 'help' for available commands");

@@ -5,6 +5,7 @@ class App {
         this.uiManager = null;
         this.shortcutsManager = null;
         this.statsInterval = null;
+        this.isAutoReconnecting = false;
         
         this.init();
     }
@@ -69,9 +70,15 @@ class App {
 
         // Error callback
         this.serialManager.onError = (error) => {
-            console.error('Serial error:', error);
-            this.uiManager.showNotification(`Error: ${error.message}`, 'error');
-            this.uiManager.updateConnectionStatus('error', error.message);
+            // Only show error notifications if not during auto-reconnect
+            if (!this.isAutoReconnecting) {
+                console.error('Serial error:', error);
+                this.uiManager.showNotification(`Error: ${error.message}`, 'error');
+                this.uiManager.updateConnectionStatus('error', error.message);
+            } else {
+                // Just log during auto-reconnect
+                console.log('Connection attempt during auto-reconnect:', error.message);
+            }
         };
     }
 
@@ -141,15 +148,13 @@ class App {
 
     // Try to auto-reconnect to previously used port
     async tryAutoReconnect() {
+        this.isAutoReconnecting = true;
         try {
             // Get previously authorized ports
             const ports = await navigator.serial.getPorts();
             
             if (ports.length === 0) {
                 this.uiManager.appendSystemMessage('Click "Select Port" to get started', false);
-                
-                // Save configuration for auto-reconnect
-                this.saveSerialConfig(config);
                 return;
             }
 
@@ -176,26 +181,38 @@ class App {
             }
             
             if (targetPort) {
-                this.uiManager.appendSystemMessage('Reconnecting to previous device...', false);
+                // Set up the port
                 this.serialManager.port = targetPort;
                 
                 const portInfo = this.serialManager.getPortInfo();
                 this.uiManager.updatePortInfo(portInfo);
                 this.uiManager.enableConnectButton();
                 
-                // Auto-connect
-                this.uiManager.updateConnectionStatus('connecting');
-                const config = savedConfig || this.uiManager.getSerialConfig();
-                await this.serialManager.connect(config);
-                
-                this.uiManager.showNotification('Reconnected to previous device', 'success');
+                // Try to auto-connect
+                try {
+                    this.uiManager.appendSystemMessage('Reconnecting to previous device...', false);
+                    this.uiManager.updateConnectionStatus('connecting');
+                    
+                    const config = savedConfig || this.uiManager.getSerialConfig();
+                    await this.serialManager.connect(config);
+                    
+                    this.uiManager.showNotification('Reconnected to previous device', 'success');
+                } catch (connectError) {
+                    // Connection failed, but port is selected
+                    console.log('Auto-reconnect failed, port selected but not connected:', connectError.message);
+                    this.uiManager.updateConnectionStatus('disconnected');
+                    this.uiManager.appendSystemMessage('Previous device detected. Click "Connect" to reconnect.', false);
+                }
             } else {
                 this.uiManager.appendSystemMessage('Click "Select Port" to get started', false);
             }
         } catch (error) {
-            console.error('Auto-reconnect failed:', error);
-            this.uiManager.appendSystemMessage('Previous device not available. Click "Select Port" to connect.', false);
+            // Silently handle auto-reconnect failures
+            console.log('Auto-reconnect skipped:', error.message);
+            this.uiManager.appendSystemMessage('Click "Select Port" to get started', false);
             this.uiManager.updateConnectionStatus('disconnected');
+        } finally {
+            this.isAutoReconnecting = false;
         }
     }
 
@@ -231,12 +248,23 @@ class App {
         } else {
             // Connect
             try {
+                if (!this.serialManager.port) {
+                    this.uiManager.showNotification('Please select a port first', 'warning');
+                    return;
+                }
+                
                 this.uiManager.updateConnectionStatus('connecting');
                 const config = this.uiManager.getSerialConfig();
                 await this.serialManager.connect(config);
             } catch (error) {
                 this.uiManager.updateConnectionStatus('error');
-                this.uiManager.showNotification(`Connection failed: ${error.message}`, 'error');
+                
+                // Format error message for display
+                const errorMsg = error.message.replace(/\n/g, '<br>');
+                this.uiManager.showNotification(errorMsg, 'error', 5000);
+                
+                // Also log to console for debugging
+                console.error('Connection error:', error);
             }
         }
     }
@@ -279,7 +307,7 @@ class App {
 
         try {
             const lineEnding = this.uiManager.getLineEnding();
-            await this.serialManager.write(command, lineEnding);
+            await this.serialManager.write(command);
             
             // Add to UI
             this.uiManager.appendMessage(command, 'sent');
@@ -303,7 +331,7 @@ class App {
 
         try {
             const lineEnding = this.uiManager.getLineEnding();
-            await this.serialManager.write(command, lineEnding);
+            await this.serialManager.write(command);
             
             // Add to UI
             this.uiManager.appendMessage(command, 'sent');

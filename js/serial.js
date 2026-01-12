@@ -73,6 +73,18 @@ class SerialManager {
         }
 
         try {
+            // Check if port is already open
+            if (this.port.readable || this.port.writable) {
+                // Port might be open, try to close it first
+                try {
+                    await this.port.close();
+                    // Wait a bit before reopening
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (closeError) {
+                    console.log('Port close attempt:', closeError.message);
+                }
+            }
+
             // Merge custom config with default config
             const connectionConfig = { ...this.config, ...customConfig };
             
@@ -113,10 +125,24 @@ class SerialManager {
             return true;
         } catch (error) {
             this.isConnected = false;
-            if (this.onError) {
-                this.onError(error);
+            
+            // Provide more helpful error messages
+            let errorMessage = error.message;
+            if (error.name === 'NetworkError' || error.message.includes('Failed to open')) {
+                errorMessage = 'Failed to open serial port. Possible causes:\n' +
+                    '• Port is being used by another application\n' +
+                    '• Device was disconnected\n' +
+                    '• Insufficient permissions\n\n' +
+                    'Try: Disconnect the device, close other serial monitors, then reconnect.';
             }
-            throw error;
+            
+            const enhancedError = new Error(errorMessage);
+            enhancedError.originalError = error;
+            
+            if (this.onError) {
+                this.onError(enhancedError);
+            }
+            throw enhancedError;
         }
     }
 

@@ -6,7 +6,7 @@
 const CONFIG = {
     // Server settings (if using a backend server)
     server: {
-        port: 6010,
+        port: 6011,
         host: 'localhost',
         protocol: 'http' // or 'https'
     },
@@ -14,7 +14,7 @@ const CONFIG = {
     // WebSocket settings (if applicable)
     websocket: {
         enabled: true,
-        url: 'http://localhost:6010',  // Socket.IO will handle the protocol
+        url: 'http://localhost:6011',  // Socket.IO will handle the protocol
         path: '/socket.io'
     },
 

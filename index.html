@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,13 +8,14 @@
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
     <!-- Header -->
     <header class="header">
         <div class="header-left">
             <div class="logo">
                 <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                 </svg>
                 <h1>ESP32 Monitor</h1>
             </div>
@@ -21,24 +23,29 @@
         <div class="header-right">
             <button id="settingsBtn" class="icon-btn" title="Settings">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2"/>
+                    <circle cx="12" cy="12" r="3" />
+                    <path
+                        d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2" />
                 </svg>
             </button>
             <button id="themeBtn" class="icon-btn" title="Toggle Theme">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                 </svg>
             </button>
             <button id="helpBtn" class="icon-btn" title="Help">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10"/>
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3m.08 4h.01"/>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3m.08 4h.01" />
                 </svg>
             </button>
+            <div class="connection-status" id="serverStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">Server: Disconnected</span>
+            </div>
             <div class="connection-status" id="connectionStatus">
                 <span class="status-dot"></span>
-                <span class="status-text">Disconnected</span>
+                <span class="status-text">Serial: Disconnected</span>
             </div>
         </div>
     </header>
@@ -49,7 +56,7 @@
         <aside class="sidebar" id="sidebar">
             <button class="sidebar-toggle" id="sidebarToggle">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M15 18l-6-6 6-6"/>
+                    <path d="M15 18l-6-6 6-6" />
                 </svg>
             </button>
 
@@ -59,14 +66,14 @@
                     <h3>Connection</h3>
                     <button id="selectPortBtn" class="btn btn-secondary">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <rect x="2" y="6" width="20" height="12" rx="2"/>
-                            <path d="M6 12h.01M10 12h.01M14 12h.01"/>
+                            <rect x="2" y="6" width="20" height="12" rx="2" />
+                            <path d="M6 12h.01M10 12h.01M14 12h.01" />
                         </svg>
                         Select Port
                     </button>
                     <button id="connectBtn" class="btn btn-primary" disabled>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                         </svg>
                         Connect
                     </button>
@@ -76,7 +83,7 @@
                 <!-- Serial Configuration -->
                 <div class="sidebar-section">
                     <h3>Serial Configuration</h3>
-                    
+
                     <label>
                         Baud Rate
                         <select id="baudRate" class="input-field">
@@ -95,7 +102,8 @@
                             <option value="custom">Custom...</option>
                         </select>
                     </label>
-                    <input type="number" id="customBaudRate" class="input-field" placeholder="Enter custom baud rate" style="display: none;">
+                    <input type="number" id="customBaudRate" class="input-field" placeholder="Enter custom baud rate"
+                        style="display: none;">
 
                     <div class="compact-options">
                         <label class="compact-label">
@@ -168,7 +176,7 @@
                 <!-- Display Options -->
                 <div class="sidebar-section">
                     <h3>Display Options</h3>
-                    
+
                     <div class="checkbox-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="showTimestamps" checked>
@@ -214,25 +222,25 @@
                 <div class="sidebar-section">
                     <button id="manageShortcutsBtn" class="btn btn-secondary btn-block">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <rect x="3" y="3" width="7" height="7"/>
-                            <rect x="14" y="3" width="7" height="7"/>
-                            <rect x="14" y="14" width="7" height="7"/>
-                            <rect x="3" y="14" width="7" height="7"/>
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
                         </svg>
                         Manage Shortcuts
                     </button>
                     <button id="saveLogBtn" class="btn btn-secondary btn-block">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                            <polyline points="17 21 17 13 7 13 7 21"/>
-                            <polyline points="7 3 7 8 15 8"/>
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                            <polyline points="17 21 17 13 7 13 7 21" />
+                            <polyline points="7 3 7 8 15 8" />
                         </svg>
                         Save Log
                     </button>
                     <button id="clearChatBtn" class="btn btn-secondary btn-block">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <polyline points="3 6 5 6 21 6"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                         </svg>
                         Clear Chat
                     </button>
@@ -252,8 +260,8 @@
                 <div class="chat-messages" id="chatMessages">
                     <div class="system-message">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <circle cx="12" cy="12" r="10"/>
-                            <path d="M12 16v-4m0-4h.01"/>
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 16v-4m0-4h.01" />
                         </svg>
                         <p>Welcome to ESP32 WebSerial Monitor</p>
                         <p class="small">Select a port and connect to start communication</p>
@@ -264,16 +272,11 @@
             <!-- Input Panel -->
             <div class="input-panel">
                 <div class="input-container">
-                    <textarea 
-                        id="commandInput" 
-                        class="command-input" 
-                        placeholder="Type command and press Enter to send..."
-                        rows="1"
-                        disabled
-                    ></textarea>
+                    <textarea id="commandInput" class="command-input"
+                        placeholder="Type command and press Enter to send..." rows="1" disabled></textarea>
                     <button id="sendBtn" class="send-btn" disabled title="Send (Enter)">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                         </svg>
                     </button>
                 </div>
@@ -292,7 +295,7 @@
                 <h2>Manage Shortcuts</h2>
                 <button class="modal-close" id="closeModalBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M18 6L6 18M6 6l12 12"/>
+                        <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                 </button>
             </div>
@@ -302,7 +305,7 @@
                 </div>
                 <button id="addShortcutBtn" class="btn btn-primary">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M12 5v14m-7-7h14"/>
+                        <path d="M12 5v14m-7-7h14" />
                     </svg>
                     Add Shortcut
                 </button>
@@ -320,10 +323,12 @@
     <div id="notifications" class="notifications"></div>
 
     <!-- Scripts -->
+    <script src="js/socket.io.min.js"></script>
     <script src="config.js"></script>
     <script src="js/serial.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/shortcuts.js"></script>
     <script src="js/app.js"></script>
 </body>
+
 </html>

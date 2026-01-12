@@ -13,7 +13,7 @@ import logging
 from datetime import datetime
 
 # Load configuration
-CONFIG_PORT = 6010
+CONFIG_PORT = 6011
 CONFIG_HOST = '0.0.0.0'  # Listen on all interfaces
 DEBUG_MODE = True
 

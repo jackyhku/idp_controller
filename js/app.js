@@ -6,7 +6,8 @@ class App {
         this.shortcutsManager = null;
         this.statsInterval = null;
         this.isAutoReconnecting = false;
-        
+        this.socket = null;
+
         this.init();
     }
 
@@ -22,28 +23,71 @@ class App {
         this.serialManager = new SerialManager();
         this.uiManager = new UIManager();
         this.shortcutsManager = new ShortcutsManager();
-        
+
+        // Initialize Socket.IO
+        this.initSocket();
+
         // Make UI manager globally accessible for notifications
         window.uiManager = this.uiManager;
-        
+
         // Setup event handlers
         this.setupSerialHandlers();
         this.setupUIHandlers();
         this.setupShortcutHandlers();
-        
+
         // Load command history
         this.uiManager.loadCommandHistory();
-        
+
         // Initialize profile list
         this.uiManager.initializeProfileList();
-        
+
         // Show welcome message
         this.uiManager.appendSystemMessage('Welcome to ESP32 WebSerial Monitor', true);
-        
+
         // Try to auto-reconnect to previous port
         await this.tryAutoReconnect();
-        
+
         console.log('ESP32 WebSerial Monitor initialized');
+    }
+
+    // Initialize Socket.IO connection
+    initSocket() {
+        if (!CONFIG.websocket.enabled || typeof io === 'undefined') {
+            console.log('Socket.IO not enabled or not loaded');
+            return;
+        }
+
+        console.log('Initializing Socket.IO connection...');
+        this.uiManager.updateServerStatus('connecting');
+
+        try {
+            this.socket = io(CONFIG.websocket.url, {
+                path: CONFIG.websocket.path
+            });
+
+            this.socket.on('connect', () => {
+                console.log('Socket connected');
+                this.uiManager.updateServerStatus('connected');
+            });
+
+            this.socket.on('disconnect', () => {
+                console.log('Socket disconnected');
+                this.uiManager.updateServerStatus('disconnected');
+            });
+
+            this.socket.on('connect_error', (error) => {
+                console.error('Socket connection error:', error);
+                this.uiManager.updateServerStatus('error');
+            });
+
+            this.socket.on('serial_data_broadcast', (data) => {
+                // Display broadcast data
+                this.uiManager.appendMessage(data, 'broadcast');
+            });
+        } catch (error) {
+            console.error('Error initializing socket:', error);
+            this.uiManager.updateServerStatus('error');
+        }
     }
 
     // Setup serial manager event handlers
@@ -51,6 +95,11 @@ class App {
         // Data received callback
         this.serialManager.onDataReceived = (text, rawBytes) => {
             this.uiManager.appendMessage(text, 'received', rawBytes);
+
+            // Broadcast to server
+            if (this.socket && this.socket.connected) {
+                this.socket.emit('serial_data', text);
+            }
         };
 
         // Connection change callback
@@ -136,7 +185,7 @@ class App {
             this.uiManager.updatePortInfo(portInfo);
             this.uiManager.enableConnectButton();
             this.uiManager.showNotification('Port selected successfully', 'success');
-            
+
             // Save port info for auto-reconnect
             this.savePortInfo(portInfo);
         } catch (error) {
@@ -152,7 +201,7 @@ class App {
         try {
             // Get previously authorized ports
             const ports = await navigator.serial.getPorts();
-            
+
             if (ports.length === 0) {
                 this.uiManager.appendSystemMessage('Click "Select Port" to get started', false);
                 return;
@@ -161,10 +210,10 @@ class App {
             // Load saved port info
             const savedPortInfo = this.loadPortInfo();
             const savedConfig = this.loadSerialConfig();
-            
+
             // Try to find matching port
             let targetPort = null;
-            
+
             if (savedPortInfo) {
                 // Try to match by vendor/product ID
                 targetPort = ports.find(port => {
@@ -174,28 +223,28 @@ class App {
                     return vendorId === savedPortInfo.usbVendorId && productId === savedPortInfo.usbProductId;
                 });
             }
-            
+
             // If no match found, use the first port
             if (!targetPort && ports.length > 0) {
                 targetPort = ports[0];
             }
-            
+
             if (targetPort) {
                 // Set up the port
                 this.serialManager.port = targetPort;
-                
+
                 const portInfo = this.serialManager.getPortInfo();
                 this.uiManager.updatePortInfo(portInfo);
                 this.uiManager.enableConnectButton();
-                
+
                 // Try to auto-connect
                 try {
                     this.uiManager.appendSystemMessage('Reconnecting to previous device...', false);
                     this.uiManager.updateConnectionStatus('connecting');
-                    
+
                     const config = savedConfig || this.uiManager.getSerialConfig();
                     await this.serialManager.connect(config);
-                    
+
                     this.uiManager.showNotification('Reconnected to previous device', 'success');
                 } catch (connectError) {
                     // Connection failed, but port is selected
@@ -252,17 +301,17 @@ class App {
                     this.uiManager.showNotification('Please select a port first', 'warning');
                     return;
                 }
-                
+
                 this.uiManager.updateConnectionStatus('connecting');
                 const config = this.uiManager.getSerialConfig();
                 await this.serialManager.connect(config);
             } catch (error) {
                 this.uiManager.updateConnectionStatus('error');
-                
+
                 // Format error message for display
                 const errorMsg = error.message.replace(/\n/g, '<br>');
                 this.uiManager.showNotification(errorMsg, 'error', 5000);
-                
+
                 // Also log to console for debugging
                 console.error('Connection error:', error);
             }
@@ -274,7 +323,7 @@ class App {
         const config = this.uiManager.getSerialConfig();
         this.serialManager.updateConfig(config);
         this.uiManager.showNotification('Configuration updated', 'info');
-        
+
         if (this.serialManager.isConnected) {
             this.uiManager.showNotification('Please reconnect for changes to take effect', 'warning');
         }
@@ -284,7 +333,7 @@ class App {
     handleSaveProfile() {
         const config = this.uiManager.getSerialConfig();
         const profileName = prompt('Enter profile name:');
-        
+
         if (profileName) {
             const profiles = JSON.parse(localStorage.getItem('esp32-monitor-profiles') || '{}');
             profiles[profileName] = config;
@@ -308,13 +357,13 @@ class App {
         try {
             const lineEnding = this.uiManager.getLineEnding();
             await this.serialManager.write(command);
-            
+
             // Add to UI
             this.uiManager.appendMessage(command, 'sent');
-            
+
             // Add to history
             this.uiManager.addToHistory(command);
-            
+
             // Clear input
             this.uiManager.clearCommandInput();
         } catch (error) {
@@ -332,13 +381,13 @@ class App {
         try {
             const lineEnding = this.uiManager.getLineEnding();
             await this.serialManager.write(command);
-            
+
             // Add to UI
             this.uiManager.appendMessage(command, 'sent');
-            
+
             // Add to history
             this.uiManager.addToHistory(command);
-            
+
             this.uiManager.showNotification(`Sent: ${command}`, 'info', 1500);
         } catch (error) {
             this.uiManager.showNotification(`Failed to send: ${error.message}`, 'error');

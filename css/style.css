@@ -966,3 +966,18 @@ label {
         display: none;
     }
 }
+
+/* Broadcast Messages */
+.message.broadcast {
+    flex-direction: row;
+}
+
+.message.broadcast .message-bubble {
+    background-color: var(--accent-warning);
+    color: white;
+    border-bottom-left-radius: var(--radius-sm);
+}
+
+body.dark-theme .message.broadcast .message-bubble {
+    background-color: #d35400; /* Darker orange for dark mode */
+}

@@ -1,8 +1,9 @@
-# ESP32 WebSerial Monitor
+# WebSerial Monitor
+> **Version 1.0.0** | **Designed by Jacky CHOW** | **Jan 2026**
 
 A modern, chatbot-style web application for communicating with ESP32 devices via USB serial connection (Web Serial API) and Bluetooth LE (Web Bluetooth API).
 
-![ESP32 WebSerial Monitor](https://img.shields.io/badge/Browser-Chrome%20%7C%20Edge-blue)
+![WebSerial Monitor](https://img.shields.io/badge/Browser-Chrome%20%7C%20Edge-blue)
 ![Web Serial API](https://img.shields.io/badge/Web%20Serial%20API-Supported-green)
 ![Web Bluetooth API](https://img.shields.io/badge/Web%20Bluetooth%20API-Supported-lightblue)
 
@@ -129,7 +130,7 @@ Feel free to fork and customize this project for your needs!
 
 ## License
 
-This project is open source and free to use.
+This project is open source and free to use under the **MIT License**.
 
 ---
 

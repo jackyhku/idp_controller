@@ -37,6 +37,10 @@ class UIManager {
             closeSettingsModalBtn: document.getElementById('closeSettingsModalBtn'),
             settingsModal: document.getElementById('settingsModal'),
             helpBtn: document.getElementById('helpBtn'),
+            aboutBtn: document.getElementById('aboutBtn'),
+            aboutModal: document.getElementById('aboutModal'),
+            closeAboutModalBtn: document.getElementById('closeAboutModalBtn'),
+            closeAboutBtn: document.getElementById('closeAboutBtn'),
 
             // Sidebar
             sidebar: document.getElementById('sidebar'),
@@ -159,6 +163,16 @@ class UIManager {
 
         // Help button
         this.elements.helpBtn.addEventListener('click', () => this.showHelp());
+
+        // About Modal
+        if (this.elements.aboutBtn) {
+            this.elements.aboutBtn.addEventListener('click', () => this.toggleAboutModal());
+            this.elements.closeAboutModalBtn.addEventListener('click', () => this.toggleAboutModal());
+            this.elements.closeAboutBtn.addEventListener('click', () => this.toggleAboutModal());
+            this.elements.aboutModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.aboutModal) this.toggleAboutModal();
+            });
+        }
     }
 
     // Update connection status
@@ -641,6 +655,16 @@ class UIManager {
 
             // Populate profile list when opening
             this.updateProfileList(this.elements.loadProfileSelect);
+        }
+    }
+
+    // Toggle About Modal
+    toggleAboutModal() {
+        const modal = this.elements.aboutModal;
+        if (modal.style.display === 'flex') {
+            modal.style.display = 'none';
+        } else {
+            modal.style.display = 'flex';
         }
     }
 

@@ -114,6 +114,19 @@ body {
     stroke-width: 2;
 }
 
+.logo-icon.img-icon {
+    background-color: #4A9EFF;
+    /* Light Blue */
+    -webkit-mask-image: url('../connection.png');
+    mask-image: url('../connection.png');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
 .header h1 {
     font-size: 20px;
     font-weight: 600;
@@ -1187,4 +1200,58 @@ body.dark-theme .message.broadcast .message-bubble {
     display: flex;
     gap: var(--spacing-sm);
     margin-top: var(--spacing-sm);
+}
+
+/* ===== Toggle Switch ===== */
+.toggle-switch-label {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    margin-bottom: 0;
+}
+
+.start-hidden-toggle {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--text-tertiary);
+    transition: .4s;
+    border-radius: 50%;
+}
+
+.start-hidden-toggle:checked+.toggle-slider {
+    background-color: var(--accent-success);
+    border-color: var(--accent-success);
+}
+
+.start-hidden-toggle:focus+.toggle-slider {
+    box-shadow: 0 0 1px var(--accent-success);
+}
+
+.start-hidden-toggle:checked+.toggle-slider:before {
+    transform: translateX(20px);
+    background-color: white;
 }

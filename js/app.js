@@ -96,8 +96,8 @@ class App {
         this.uiManager = new UIManager();
         this.shortcutsManager = new ShortcutsManager();
 
-        // Initialize Socket.IO
-        this.initSocket();
+        // Initialize Socket.IO - Connect only if needed (Remote mode or Broadcast)
+        // this.initSocket(); // Lazy load now
 
         // Make UI manager globally accessible for notifications
         window.uiManager = this.uiManager;
@@ -110,6 +110,12 @@ class App {
 
         // Load command history
         this.uiManager.loadCommandHistory();
+
+        // Load saved serial config and update UI
+        const savedConfig = this.loadSerialConfig();
+        if (savedConfig) {
+            this.uiManager.setSerialConfig(savedConfig);
+        }
 
         // Initialize profile list
         this.uiManager.initializeProfileList();
@@ -126,17 +132,19 @@ class App {
         console.log('ESP32 WebSerial Monitor initialized');
     }
 
-    // Initialize Socket.IO connection
+    // Initialize Socket.IO connection (Setup only)
     initSocket() {
         if (!CONFIG.websocket.enabled || typeof io === 'undefined') {
             return;
         }
 
-        this.uiManager.updateServerStatus('connecting');
+        // Prevent multiple initializations
+        if (this.socket) return;
 
         try {
             this.socket = io(CONFIG.websocket.url, {
-                path: CONFIG.websocket.path
+                path: CONFIG.websocket.path,
+                autoConnect: false // Don't connect automatically
             });
 
             this.socket.on('connect', () => {
@@ -145,12 +153,21 @@ class App {
 
             this.socket.on('connection_response', (data) => {
                 this.mySessionId = data.session_id;
-                this.uiManager.updateSessionId(this.mySessionId);
+                // Only show session ID if broadcast is enabled (as per user request)
+                if (this.broadcastEnabled) {
+                    this.uiManager.updateSessionId(this.mySessionId);
+                }
                 console.log('My Session ID:', this.mySessionId);
             });
 
             this.socket.on('disconnect', () => {
                 this.uiManager.updateServerStatus('disconnected');
+            });
+
+            this.socket.on('connect_error', (err) => {
+                this.uiManager.updateServerStatus('error', 'Connection Refused');
+                // console.debug('Socket connect error', err); 
+                // Silence expected errors if server is down, as per user request
             });
 
             this.socket.on('system_message', (data) => {
@@ -183,6 +200,26 @@ class App {
             });
         } catch (error) {
             console.error('Error initializing socket:', error);
+        }
+    }
+
+    // Explicitly connect to socket
+    connectSocket() {
+        if (!this.socket) {
+            this.initSocket();
+        }
+
+        if (this.socket && !this.socket.connected) {
+            this.uiManager.updateServerStatus('connecting');
+            this.socket.connect();
+        }
+    }
+
+    // Explicitly disconnect from socket
+    disconnectSocket() {
+        if (this.socket && this.socket.connected) {
+            this.socket.disconnect();
+            this.uiManager.updateServerStatus('disconnected');
         }
     }
 
@@ -311,7 +348,24 @@ class App {
 
                 // Trigger connection logic if needed, or just update UI
                 if (this.broadcastEnabled) {
-                    this.socket.emit('create_session'); // Ensure session exists
+                    this.connectSocket();
+                    // Wait a bit for connection? Or just try to create session immediately?
+                    // Better to wait for 'connect' event, but for now we trust logic
+                    if (this.socket && this.socket.connected) {
+                        this.socket.emit('create_session');
+                    } else if (this.socket) {
+                        // Session will be created via UI controls or manual request if needed? 
+                        // Or ideally we auto-create session on connect if broadcast is enabled.
+                        // For now let's just ensure we connect.
+                        this.socket.once('connect', () => {
+                            this.socket.emit('create_session');
+                        });
+                    }
+                } else {
+                    // If we are not in remote mode, we can disconnect
+                    if (this.activeMode !== 'remote') {
+                        this.disconnectSocket();
+                    }
                 }
 
                 const status = this.broadcastEnabled ? 'enabled' : 'disabled';
@@ -377,10 +431,13 @@ class App {
 
         if (mode === 'serial') {
             this.activeManager = this.serialManager;
+            if (!this.broadcastEnabled) this.disconnectSocket();
         } else if (mode === 'bluetooth') {
             this.activeManager = this.bluetoothManager;
+            if (!this.broadcastEnabled) this.disconnectSocket();
         } else {
             this.activeManager = this.remoteManager;
+            this.connectSocket();
         }
 
         // Update UI
@@ -559,6 +616,11 @@ class App {
                 }
 
                 await this.activeManager.connect(config);
+
+                // Save config if successful (and in serial mode)
+                if (this.activeMode === 'serial') {
+                    this.saveSerialConfig(config);
+                }
             } catch (error) {
                 this.uiManager.updateConnectionStatus('error');
 

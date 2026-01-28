@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebSerial Monitor</title>
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/png" href="connection.png">
     <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -14,9 +14,7 @@
     <header class="header">
         <div class="header-left">
             <div class="logo">
-                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                </svg>
+                <div class="logo-icon img-icon"></div>
                 <h1>WebSerial Monitor</h1>
             </div>
         </div>
@@ -33,10 +31,11 @@
                 </div>
             </div>
             <button id="settingsBtn" class="icon-btn" title="Settings">
+                <!-- Gear Icon -->
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
                     <path
-                        d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.2 4.2l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.2-4.2l4.2-4.2" />
+                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
             </button>
             <button id="themeBtn" class="icon-btn" title="Toggle Theme">
@@ -51,12 +50,7 @@
                     <path d="M12 8h.01" />
                 </svg>
             </button>
-            <button id="helpBtn" class="icon-btn" title="Help">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3m.08 4h.01" />
-                </svg>
-            </button>
+
             <div class="connection-status" id="serverStatus">
                 <span class="status-dot"></span>
                 <span class="status-text">Server: Disconnected</span>
@@ -87,11 +81,11 @@
                             <span>Serial</span>
                             <span class="btn-subtitle">(USB / SPP 2.0)</span>
                         </button>
-                        <button class="segmented-btn" data-mode="bluetooth">
+                        <button class="segmented-btn advanced-only" data-mode="bluetooth" style="display: none;">
                             <span>Bluetooth</span>
                             <span class="btn-subtitle">(BLE 4.0)</span>
                         </button>
-                        <button class="segmented-btn" data-mode="remote">
+                        <button class="segmented-btn advanced-only" data-mode="remote" style="display: none;">
                             <span>Remote</span>
                             <span class="btn-subtitle">(Monitor)</span>
                         </button>
@@ -272,6 +266,20 @@
                 </button>
             </div>
             <div class="modal-body">
+                <!-- Advanced Mode Toggle -->
+                <div class="settings-section">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <span>
+                            <strong>Advanced Mode</strong>
+                            <span style="display: block; font-size: 0.85em; opacity: 0.7;">Enable BLE and Remote
+                                connections</span>
+                        </span>
+                        <label class="toggle-switch-label">
+                            <input type="checkbox" id="advancedModeToggle" class="start-hidden-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
                 <!-- Serial Configuration -->
                 <div class="settings-section">
                     <h3>Serial Configuration</h3>
@@ -389,10 +397,7 @@
             <div class="modal-body">
                 <div style="text-align: center; padding: 20px;">
                     <div class="logo" style="justify-content: center; margin-bottom: 20px;">
-                        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            style="width: 48px; height: 48px;">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                        </svg>
+                        <div class="logo-icon img-icon" style="width: 48px; height: 48px;"></div>
                     </div>
                     <h3>WebSerial Monitor</h3>
                     <p>Version 1.0.0</p>

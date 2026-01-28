@@ -9,40 +9,35 @@ A modern, chatbot-style web application for communicating with ESP32 devices via
 
 ## Features
 
-### 🔌 Dual Connection Modes
-- **Serial (USB / SPP 2.0)**: Connect via standard USB cable. Also supports Classic Bluetooth (HC-05/06) if paired via OS settings as a serial port.
-- **Bluetooth (BLE 4.0)**: Connect wirelessly to ESP32 BLE devices directly from the browser (no pairing needed). Supports Nordic UART Service (NUS) by default.
+### 🔌 Advanced Connection Modes
+- **Basic Mode (Default)**: Simple, clutter-free USB Serial interface.
+- **Advanced Mode**: Unlock optional features via Settings:
+    - **Bluetooth (BLE 4.0)**: Connect wirelessly to ESP32 BLE devices directly from the browser (no pairing needed, supports Nordic UART Service).
+    - **Remote Broadcast**: Stream your local connection to a remote observer via Session ID.
+    - **Remote Monitor**: Connect to a remote session to view data and send commands.
 
 ### 🎨 Modern UI/UX
-- **Chatbot-inspired interface** with message bubbles
-- **Dark/Light theme** support with smooth transitions
-- **Responsive design** that works on desktop and tablet
-- **Clean Sidebar**: Focused on connection and port selection
-- **Settings Modal**: Consolidated configuration and profile management
-- **Toggle Controls**: Sleek light-up buttons for Broadcast, Timestamps, and Auto-scroll
-- **Segmented Control** for easy mode switching
+- **Chatbot-inspired interface** with message bubbles.
+- **Dark/Light theme** support with smooth transitions.
+- **Clean Sidebar**: Focused on connection and port selection.
+- **Settings Modal**: Consolidated configuration, "Advanced Mode" toggle, and profile management.
+- **Custom Branding**: Stylized "Plug" icon with custom theming.
 
-### 🔧 Full Serial/BLE Control
-- **Serial**: Configurable Baud rate, Data bits, Parity, Flow control via Settings Modal.
+### 🔧 Full Serial Control
+- **Serial**: Configurable Baud rate, Data bits, Parity, Flow control.
 - **Profiles**: Save and load your favorite connection configurations.
 - **Line Endings**: Fast selector (None, LF, CR, CRLF) right in the input area.
 
 ### ⚡ Customizable Shortcuts
-- **Quick command buttons** at the top of the interface
-- **Fully customizable** - add, edit, delete, and reorder
-- **Import/Export** button configurations as JSON
+- **Quick command buttons** at the top of the interface.
+- **Fully customizable** - add, edit, delete, and reorder.
+- **Import/Export** button configurations as JSON.
 
 ### 💬 Chat-Style Communication
-- ESP32 messages displayed on the left (incoming)
-- Your commands displayed on the right (outgoing)
-- **Hex/Text/Mixed** display modes
-- Command history with arrow key navigation
-
-### 📡 Remote Monitoring (Session-Based)
-- **Remote Broadcast**: Stream your local Serial/Bluetooth connection data to a remote observer.
-- **Session IDs**: Unique 6-character Session IDs for secure, targeted monitoring.
-- **Bi-directional**: Remote monitors can send commands back to the device.
-- **Backend**: Python Flask server with Socket.IO for real-time low-latency communication.
+- ESP32 messages displayed on the left (incoming).
+- Your commands displayed on the right (outgoing).
+- **Hex/Text/Mixed** display modes.
+- Command history with arrow key navigation.
 
 ## Browser Requirements
 
@@ -78,18 +73,20 @@ This application requires modern browser APIs:
 
 1. **Select Connection Mode** in the sidebar:
    - **Serial**: For USB.
-   - **Bluetooth**: For BLE devices.
+   - **Bluetooth**: For BLE devices (Enable "Advanced Mode" in Settings to see this).
 2. Click **"Select Port"** or **"Scan Device"**.
 3. Choose your device and click **"Connect"**.
 
-## Remote Monitoring Guide
+## Remote Monitoring Guide (Advanced Mode)
 
 1. **Broadcaster (Device Owner)**:
+   - Enable **Advanced Mode** in Settings (Gear Icon).
    - Connect to your device via Serial or Bluetooth.
    - Click **"Remote Broadcast"** in the header.
    - Share the generated **Session ID** (e.g., `A1B2C3`) with your peer.
 
 2. **Monitor (Remote Observer)**:
+   - Enable **Advanced Mode** in Settings.
    - Select **"Remote"** mode in the sidebar.
    - Enter the **Session ID** provided by the broadcaster.
    - Click **"Connect"**.
@@ -124,13 +121,15 @@ WebSerial/
 - Verify correct baud rate (default: 115200)
 - Ensure ESP32 is not connected to Arduino IDE monitor
 
-## Contributing
-
-Feel free to fork and customize this project for your needs!
-
 ## License
 
-This project is open source and free to use under the **MIT License**.
+This project is licensed under the **MIT License**.
+
+> **Copyright (c) 2026 Jacky CHOW**
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+>
+> **The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.**
 
 ---
 

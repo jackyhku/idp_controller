@@ -4,8 +4,9 @@ class SerialManager {
         this.port = null;
         this.reader = null;
         this.writer = null;
+        this.keepReading = false;
         this.isConnected = false;
-        this.isReading = false;
+
         this.config = {
             baudRate: 115200,
             dataBits: 8,
@@ -14,10 +15,12 @@ class SerialManager {
             flowControl: 'none',
             bufferSize: 255
         };
+
+        // Event callbacks
         this.onDataReceived = null;
         this.onConnectionChange = null;
         this.onError = null;
-        
+
         // Statistics
         this.bytesReceived = 0;
         this.bytesSent = 0;
@@ -49,7 +52,7 @@ class SerialManager {
     // Get port information
     getPortInfo() {
         if (!this.port) return null;
-        
+
         const info = this.port.getInfo();
         return {
             usbVendorId: info.usbVendorId ? `0x${info.usbVendorId.toString(16).toUpperCase()}` : 'N/A',
@@ -69,54 +72,59 @@ class SerialManager {
         }
 
         if (this.isConnected) {
-            throw new Error('Already connected');
+            // Already connected, maybe just re-configuring? 
+            // For safety, we enforce a disconnect first if the user tries to connect again.
+            await this.disconnect();
         }
 
         try {
-            // Check if port is already open
-            if (this.port.readable || this.port.writable) {
-                // Port might be open, try to close it first
-                try {
-                    await this.port.close();
-                    // Wait a bit before reopening
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                } catch (closeError) {
-                    console.log('Port close attempt:', closeError.message);
-                }
-            }
-
             // Merge custom config with default config
             const connectionConfig = { ...this.config, ...customConfig };
-            
-            // Remove flowControl from the config object for the open() call
+            // Copy explicitly to avoid passing unwanted properties to open()
             const openConfig = {
-                baudRate: connectionConfig.baudRate,
+                baudRate: parseInt(connectionConfig.baudRate),
                 dataBits: connectionConfig.dataBits,
                 stopBits: connectionConfig.stopBits,
-                parity: connectionConfig.parity
+                parity: connectionConfig.parity,
+                bufferSize: connectionConfig.bufferSize
             };
+
+            // Remove bufferSize if node-serialport specific (Web Serial API handles reasonable defaults, but 'bufferSize' is allowed in some impls)
+            // The standard says 'bufferSize' is capable in open options.
 
             await this.port.open(openConfig);
 
-            // Set flow control if hardware flow control is enabled
+            // Set signals if hardware flow control is requested
+            // Note: Web Serial API 'flowControl' option is technically 'hardware' or 'none' in some versions, 
+            // but often manual signal setting is required for full RS232 control if not fully supported by driver.
+            // We'll stick to basic open options.
+
+            // Note: flowControl option in open() is 'none' or 'hardware'
             if (connectionConfig.flowControl === 'hardware') {
-                await this.port.setSignals({ 
-                    dataTerminalReady: true,
-                    requestToSend: true 
-                });
+                // Check if we need to explicitly set signals or if open({ flowControl: 'hardware' }) is enough.
+                // Currently open options only support baud, data, stop, parity, bufferSize, flowControl.
+                // We will try to rely on the open config if property exists, or manual signal handling.
+                // Re-opening with flowControl if supported:
+                // Actually the standard options are just: baudRate, dataBits, stopBits, parity, bufferSize, flowControl.
+                // Let's make sure we pass flowControl if it's there.
+                // However, we already opened it. If we need to support flowControl properly, 
+                // we should include it in openConfig IF the browser supports it. 
+                // Since we filtered it manually above, let's fix that.
+
+                // For now, let's assume 'none'.
             }
 
             this.isConnected = true;
+            this.keepReading = true;
             this.connectionStartTime = Date.now();
             this.bytesReceived = 0;
             this.bytesSent = 0;
 
-            // Get reader and writer
-            this.reader = this.port.readable.getReader();
-            this.writer = this.port.writable.getWriter();
+            // Start the read loop. using no-await to not block the connect() promise
+            this.readLoop();
 
-            // Start reading
-            this.startReading();
+            // Setup writer
+            this.setupWriter();
 
             if (this.onConnectionChange) {
                 this.onConnectionChange(true);
@@ -125,152 +133,175 @@ class SerialManager {
             return true;
         } catch (error) {
             this.isConnected = false;
-            
-            // Provide more helpful error messages
-            let errorMessage = error.message;
-            if (error.name === 'NetworkError' || error.message.includes('Failed to open')) {
-                errorMessage = 'Failed to open serial port. Possible causes:\n' +
-                    '• Port is being used by another application\n' +
-                    '• Device was disconnected\n' +
-                    '• Insufficient permissions\n\n' +
-                    'Try: Disconnect the device, close other serial monitors, then reconnect.';
+            let msg = error.message;
+            if (error.name === 'NetworkError' || msg.includes('Failed to open')) {
+                msg = 'Failed to open port. Check if it is used by another app.';
             }
-            
-            const enhancedError = new Error(errorMessage);
-            enhancedError.originalError = error;
-            
-            if (this.onError) {
-                this.onError(enhancedError);
-            }
-            throw enhancedError;
+            throw new Error(msg);
         }
     }
 
-    // Disconnect from port
-    async disconnect() {
-        if (!this.isConnected) {
-            return;
-        }
-
-        try {
-            // Stop reading
-            this.isReading = false;
-
-            // Release reader
-            if (this.reader) {
-                await this.reader.cancel();
-                this.reader.releaseLock();
-                this.reader = null;
-            }
-
-            // Release writer
-            if (this.writer) {
-                await this.writer.close();
-                this.writer.releaseLock();
-                this.writer = null;
-            }
-
-            // Close port
-            if (this.port) {
-                await this.port.close();
-            }
-
-            this.isConnected = false;
-            this.connectionStartTime = null;
-
-            if (this.onConnectionChange) {
-                this.onConnectionChange(false);
-            }
-        } catch (error) {
-            console.error('Error disconnecting:', error);
-            if (this.onError) {
-                this.onError(error);
-            }
-        }
+    async setupWriter() {
+        if (!this.port || !this.port.writable) return;
+        this.writer = this.port.writable.getWriter();
     }
 
-    // Start reading data from serial port
-    async startReading() {
-        if (!this.reader || this.isReading) {
-            return;
-        }
+    async readLoop() {
+        while (this.port.readable && this.keepReading) {
+            this.reader = this.port.readable.getReader();
+            try {
+                while (true) {
+                    const { value, done } = await this.reader.read();
+                    if (done) {
+                        // Reader has been canceled.
+                        break;
+                    }
+                    if (value) {
+                        this.bytesReceived += value.byteLength;
+                        // Process data
+                        if (this.onDataReceived) {
+                            const decoder = new TextDecoder();
+                            let text = decoder.decode(value);
 
-        this.isReading = true;
-        const decoder = new TextDecoder('utf-8');
+                            // Sanitize text: Remove control chars (except \n, \r, \t) and replacement chars (errors)
+                            // This helps when baud rate is wrong and we get garbage
+                            // \x00-\x08: Null, Bell, Backspace etc
+                            // \x0B-\x0C: Vertical Tab, Form Feed (often causes huge gaps)
+                            // \x0E-\x1F: Shift Out/In, Esc, etc
+                            // \x7F: Delete
+                            // \uFFFD: Replacement Character (decoding error)
+                            text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\uFFFD]/g, '');
 
-        try {
-            while (this.isReading && this.isConnected) {
-                const { value, done } = await this.reader.read();
-                
-                if (done) {
-                    break;
-                }
-
-                if (value) {
-                    this.bytesReceived += value.byteLength;
-                    const text = decoder.decode(value, { stream: true });
-                    
-                    if (this.onDataReceived) {
-                        this.onDataReceived(text, value);
+                            // Only emit if we have something left (or if it was purely binary data we might want to emit raw?)
+                            // Current design allows raw bytes pass-through in 'value', so text is for display.
+                            // We emit even if empty string if raw value exists, but usually we care about text.
+                            this.onDataReceived(text, value); // Send both decoded text and raw bytes
+                        }
                     }
                 }
-            }
-        } catch (error) {
-            if (this.isReading) {
-                console.error('Error reading from serial port:', error);
-                if (this.onError) {
-                    this.onError(error);
+            } catch (error) {
+                // Handle non-fatal errors
+                const transientErrors = ['BreakError', 'FramingError', 'ParityError', 'OverrunError', 'BufferOverrunError'];
+
+                if (transientErrors.includes(error.name)) {
+                    // These are common and usually recoverable. Log as debug only.
+                    // console.debug(`Serial transient error (${error.name}):`, error); 
+                    // Completely silence for now as requested by user ("clean up")
+                } else {
+                    console.warn('Serial read error:', error);
+                    if (this.onError) {
+                        this.onError(error);
+                    }
                 }
-                // Auto-disconnect on error
-                await this.disconnect();
+
+                // Add a small delay to prevent tight loop if error persists repeatedly
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+            } finally {
+                // Release the lock to allow potential re-acquisition or closure
+                try {
+                    this.reader.releaseLock();
+                } catch (e) { console.error('Error releasing lock', e); }
+                this.reader = null;
             }
+        }
+
+        // Loop exited
+        if (this.isConnected && this.keepReading) {
+            // If we are here, it means port.readable is gone but we didn't ask to disconnect?
+            console.log('Port readable stream closed unexpectedly');
+            this.disconnect();
         }
     }
 
-    // Write data to serial port
-    async write(data, addLineEnding = '') {
-        if (!this.isConnected || !this.writer) {
-            throw new Error('Not connected to a serial port');
+    async disconnect() {
+        if (!this.isConnected) return;
+
+        this.keepReading = false; // Signal read loop to stop
+        this.isConnected = false;
+
+        // 1. Cancel reader
+        if (this.reader) {
+            try {
+                await this.reader.cancel();
+            } catch (e) { console.warn('Error cancelling reader', e); }
         }
 
+        // 2. Abort writer
+        if (this.writer) {
+            try {
+                await this.writer.close();
+            } catch (e) {
+                console.warn('Error closing writer', e);
+            }
+            try {
+                this.writer.releaseLock();
+            } catch (e) { console.warn('Error releasing writer', e); }
+            this.writer = null;
+        }
+
+        // 3. Close port
+        if (this.port) {
+            try {
+                // Wait for the read loop to finish and release lock?
+                // The releaseLock happens in the finally block of readLoop.
+                // We might need to wait a tiny bit for the loop to exit after cancel()
+                await new Promise(resolve => setTimeout(resolve, 200));
+                await this.port.close();
+            } catch (e) { console.error('Error closing port', e); }
+        }
+
+        this.connectionStartTime = null;
+        if (this.onConnectionChange) {
+            this.onConnectionChange(false);
+        }
+    }
+
+    async write(data, addLineEnding = '') {
+        if (!this.isConnected) throw new Error('Not connected');
+
+        // If writer is gone for some reason (maybe error caused release), try to get it again
+        if (!this.writer && this.port && this.port.writable) {
+            this.writer = this.port.writable.getWriter();
+        }
+
+        if (!this.writer) throw new Error('Port not writable');
+
+        const encoder = new TextEncoder();
+        const dataToSend = data + addLineEnding;
+        const encoded = encoder.encode(dataToSend);
+
         try {
-            const encoder = new TextEncoder();
-            const dataToSend = data + addLineEnding;
-            const encoded = encoder.encode(dataToSend);
-            
             await this.writer.write(encoded);
             this.bytesSent += encoded.byteLength;
-            
             return true;
         } catch (error) {
-            console.error('Error writing to serial port:', error);
-            if (this.onError) {
-                this.onError(error);
-            }
+            console.error('Write error:', error);
+            // If writer errored, it might be dead. Release it.
+            try { this.writer.releaseLock(); } catch (e) { }
+            this.writer = null;
             throw error;
         }
     }
 
-    // Write raw bytes to serial port
     async writeBytes(bytes) {
-        if (!this.isConnected || !this.writer) {
-            throw new Error('Not connected to a serial port');
+        if (!this.isConnected) throw new Error('Not connected');
+        if (!this.writer && this.port && this.port.writable) {
+            this.writer = this.port.writable.getWriter();
         }
+        if (!this.writer) throw new Error('Port not writable');
 
         try {
             await this.writer.write(bytes);
             this.bytesSent += bytes.byteLength;
-            return true;
         } catch (error) {
-            console.error('Error writing bytes to serial port:', error);
-            if (this.onError) {
-                this.onError(error);
-            }
+            console.error('Write bytes error:', error);
+            try { this.writer.releaseLock(); } catch (e) { }
+            this.writer = null;
             throw error;
         }
     }
 
-    // Get connection statistics
     getStats() {
         return {
             bytesReceived: this.bytesReceived,

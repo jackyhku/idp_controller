@@ -7,6 +7,7 @@ class UIManager {
         this.autoScroll = true;
         this.showTimestamps = true;
         this.displayFormat = 'text';
+        this.advancedMode = false;
         this.theme = 'light';
         this.messageBuffer = [];
 
@@ -36,11 +37,13 @@ class UIManager {
             closeSettingsBtn: document.getElementById('closeSettingsBtn'),
             closeSettingsModalBtn: document.getElementById('closeSettingsModalBtn'),
             settingsModal: document.getElementById('settingsModal'),
-            helpBtn: document.getElementById('helpBtn'),
             aboutBtn: document.getElementById('aboutBtn'),
             aboutModal: document.getElementById('aboutModal'),
             closeAboutModalBtn: document.getElementById('closeAboutModalBtn'),
             closeAboutBtn: document.getElementById('closeAboutBtn'),
+
+            // Advanced Mode Toggle
+            advancedModeToggle: document.getElementById('advancedModeToggle'),
 
             // Sidebar
             sidebar: document.getElementById('sidebar'),
@@ -105,6 +108,13 @@ class UIManager {
             if (e.target === this.elements.settingsModal) this.toggleSettings();
         });
 
+        // Advanced Mode Toggle
+        if (this.elements.advancedModeToggle) {
+            this.elements.advancedModeToggle.addEventListener('change', (e) => {
+                this.toggleAdvancedMode(e.target.checked);
+            });
+        }
+
         // Sidebar toggle
         this.elements.sidebarToggle.addEventListener('click', () => this.toggleSidebar());
 
@@ -160,9 +170,6 @@ class UIManager {
         this.elements.commandInput.addEventListener('keydown', (e) => {
             this.handleCommandInputKeydown(e);
         });
-
-        // Help button
-        this.elements.helpBtn.addEventListener('click', () => this.showHelp());
 
         // About Modal
         if (this.elements.aboutBtn) {
@@ -245,7 +252,10 @@ class UIManager {
             selectBtnText.textContent = 'Select Port';
             // if (serialConfigSection) serialConfigSection.style.display = 'block'; // Moved to Settings Modal
             if (remoteConfigSection) remoteConfigSection.style.display = 'none';
-            if (headerBroadcastControls) headerBroadcastControls.style.display = 'flex';
+            if (headerBroadcastControls) {
+                // Only show broadcast controls if in advanced mode
+                headerBroadcastControls.style.display = this.advancedMode ? 'flex' : 'none';
+            }
             // if (broadcastSection) broadcastSection.style.display = 'block'; // Moved to Header
             const formatSelector = document.getElementById('formatSelectorContainer');
             if (formatSelector) formatSelector.style.display = 'block';
@@ -256,7 +266,10 @@ class UIManager {
             selectBtnText.textContent = 'Scan Device';
             // if (serialConfigSection) serialConfigSection.style.display = 'none';
             if (remoteConfigSection) remoteConfigSection.style.display = 'none';
-            if (headerBroadcastControls) headerBroadcastControls.style.display = 'flex';
+            if (headerBroadcastControls) {
+                // Only show broadcast controls if in advanced mode
+                headerBroadcastControls.style.display = this.advancedMode ? 'flex' : 'none';
+            }
             // if (broadcastSection) broadcastSection.style.display = 'block'; // Moved to Header
             this.enableConnectButton(false); // disable until device selected
         } else {
@@ -643,6 +656,41 @@ class UIManager {
         this.showNotification(`${this.theme === 'dark' ? 'Dark' : 'Light'} theme activated`, 'info');
     }
 
+    // Toggle Advanced Mode
+    toggleAdvancedMode(enabled) {
+        this.advancedMode = enabled;
+
+        // Update UI elements visibility
+        const advancedElements = document.querySelectorAll('.advanced-only');
+        advancedElements.forEach(el => {
+            el.style.display = enabled ? 'flex' : 'none';
+        });
+
+        // Update Toggle Switch State if not triggered by the switch itself (e.g. at load)
+        if (this.elements.advancedModeToggle) {
+            this.elements.advancedModeToggle.checked = enabled;
+        }
+
+        this.savePreferences();
+
+        if (enabled) {
+            this.showNotification('Advanced Mode Enabled', 'info');
+        } else {
+            // If we were in a now-hidden mode, switch back to serial
+            const activeBtn = document.querySelector('.segmented-btn.active');
+            if (activeBtn && activeBtn.classList.contains('advanced-only')) {
+                const serialBtn = document.querySelector('.segmented-btn[data-mode="serial"]');
+                if (serialBtn) serialBtn.click();
+            }
+        }
+
+        // Refresh current mode UI to update broadcast controls visibility
+        const activeBtn = document.querySelector('.segmented-btn.active');
+        if (activeBtn) {
+            this.updateModeUI(activeBtn.dataset.mode);
+        }
+    }
+
     // Toggle Settings Modal
     toggleSettings() {
         const modal = this.elements.settingsModal;
@@ -729,12 +777,37 @@ class UIManager {
         }, duration);
     }
 
-    // Show help dialog
-    showHelp() {
-        this.appendSystemMessage('Web Serial Monitor for ESP32');
-        this.appendSystemMessage('Select a port and connect to start communication');
-        this.appendSystemMessage('Press Enter to send commands, Shift+Enter for new line');
-        this.appendSystemMessage('Use arrow keys to navigate command history');
+
+    // Set serial configuration to UI
+    setSerialConfig(config) {
+        if (!config) return;
+
+        // Baud Rate
+        const baudOptions = Array.from(this.elements.baudRate.options).map(o => parseInt(o.value));
+        if (baudOptions.includes(config.baudRate)) {
+            this.elements.baudRate.value = config.baudRate;
+            this.elements.customBaudRate.style.display = 'none';
+        } else {
+            this.elements.baudRate.value = 'custom';
+            this.elements.customBaudRate.style.display = 'block';
+            this.elements.customBaudRate.value = config.baudRate;
+        }
+
+        // Data Bits
+        for (const radio of this.elements.dataBits) {
+            radio.checked = parseInt(radio.value) === config.dataBits;
+        }
+
+        // Stop Bits
+        for (const radio of this.elements.stopBits) {
+            radio.checked = parseInt(radio.value) === config.stopBits;
+        }
+
+        // Parity
+        if (config.parity) this.elements.parity.value = config.parity;
+
+        // Flow Control
+        if (config.flowControl) this.elements.flowControl.value = config.flowControl;
     }
 
     // Get serial configuration from UI
@@ -797,7 +870,8 @@ class UIManager {
             theme: this.theme,
             showTimestamps: this.showTimestamps,
             autoScroll: this.autoScroll,
-            displayFormat: this.displayFormat
+            displayFormat: this.displayFormat,
+            advancedMode: this.advancedMode
         };
         localStorage.setItem('esp32-monitor-preferences', JSON.stringify(preferences));
     }
@@ -811,6 +885,7 @@ class UIManager {
             this.showTimestamps = preferences.showTimestamps !== false;
             this.autoScroll = preferences.autoScroll !== false;
             this.displayFormat = preferences.displayFormat || 'text';
+            this.advancedMode = preferences.advancedMode === true;
 
             // Apply theme
             if (this.theme === 'dark') {
@@ -821,6 +896,12 @@ class UIManager {
             this.toggleButtonState(this.elements.timestampsBtn, this.showTimestamps);
             this.toggleButtonState(this.elements.autoScrollBtn, this.autoScroll);
             this.elements.displayFormat.value = this.displayFormat;
+
+            // Apply Advanced Mode
+            this.toggleAdvancedMode(this.advancedMode);
+        } else {
+            // Default: Ensure advanced mode is off (or whatever default you prefer)
+            this.toggleAdvancedMode(this.advancedMode);
         }
     }
 

@@ -23,10 +23,16 @@ A modern, chatbot-style web application for communicating with ESP32 devices via
 - **Settings Modal**: Consolidated configuration, "Advanced Mode" toggle, and profile management.
 - **Custom Branding**: Stylized "Plug" icon with custom theming.
 
-### 🔧 Full Serial Control
-- **Serial**: Configurable Baud rate, Data bits, Parity, Flow control.
-- **Profiles**: Save and load your favorite connection configurations.
+### 🛡️ Robust Serial Engine
+- **Self-Healing Connection**: Automatically recovers from transient errors (like `BreakError`) without disconnecting.
+- **Smart Sanitization**: Automatically filters out garbage characters caused by incorrect baud rates while preserving valid Unicode text (emojis, multiple languages).
+- **Clean Console**: Suppresses unnecessary error logs for a smoother debugging experience.
+
+### 🔧 Intelligent Control
+- **Auto-Save Config**: Remembers your preferred Baud Rate, Data Bits, and other settings automatically.
+- **Detailed Stats**: Real-time tracking of RX/TX bytes and Uptime.
 - **Line Endings**: Fast selector (None, LF, CR, CRLF) right in the input area.
+- **Profiles**: Manually save/load specific configurations for different devices.
 
 ### ⚡ Customizable Shortcuts
 - **Quick command buttons** at the top of the interface.
@@ -57,11 +63,24 @@ This application requires modern browser APIs:
    ```bash
    pip install flask flask-socketio eventlet
    ```
-3. Run the backend server (default port 6015):
+3. Run the backend server:
+   
+   **Option A: Quick Start (Recommended)**
    ```bash
+   ./start.sh
+   ```
+   
+   **Option B: Manual Start**
+   ```bash
+   # Activate virtual environment first
+   source venv/bin/activate
    python server.py
    ```
-4. Open `http://localhost:6015` in Chrome or Edge.
+   *The server runs on port 6011 by default.*
+   
+4. Open the application:
+   - **Localhost**: `http://localhost:6011`
+   - **Production**: `https://your-domain.com` (supported automatically)
 
 ### 2. Upload Test Program to ESP32
 
@@ -82,8 +101,8 @@ This application requires modern browser APIs:
 1. **Broadcaster (Device Owner)**:
    - Enable **Advanced Mode** in Settings (Gear Icon).
    - Connect to your device via Serial or Bluetooth.
-   - Click **"Remote Broadcast"** in the header.
-   - Share the generated **Session ID** (e.g., `A1B2C3`) with your peer.
+   - Click **"Remote Broadcast"** in the header (Wifi Icon).
+   - A **Session ID** (e.g., `A1B2C3`) will appear. Share this with your peer.
 
 2. **Monitor (Remote Observer)**:
    - Enable **Advanced Mode** in Settings.

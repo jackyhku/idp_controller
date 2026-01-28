@@ -14,7 +14,11 @@ const CONFIG = {
     // WebSocket settings (if applicable)
     websocket: {
         enabled: true,
-        url: 'http://localhost:6011',  // Socket.IO will handle the protocol
+        // Dynamically determine URL based on current page location
+        // This supports localhost, local IP (192.168.x.x), and production domains (e.g. webserial.qrhk.app)
+        url: (typeof window !== 'undefined' && window.location.protocol !== 'file:')
+            ? window.location.origin
+            : 'http://localhost:6011',
         path: '/socket.io'
     },
 

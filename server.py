@@ -17,7 +17,7 @@ from datetime import datetime
 # Load configuration
 CONFIG_PORT = 6011
 CONFIG_HOST = '0.0.0.0'  # Listen on all interfaces
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 # Initialize Flask app
 app = Flask(__name__, static_folder='.')
@@ -220,6 +220,5 @@ if __name__ == '__main__':
         app,
         host=CONFIG_HOST,
         port=CONFIG_PORT,
-        debug=DEBUG_MODE,
-        allow_unsafe_werkzeug=True  # For development only
+        debug=DEBUG_MODE
     )

@@ -154,3 +154,10 @@ This project is licensed under the **MIT License**.
 ---
 
 **Happy Coding! 🚀**
+
+## Acknowledgements
+
+- **[Socket.IO](https://socket.io/)**: For real-time bidirectional event-based communication.
+- **[Flask-SocketIO](https://flask-socketio.readthedocs.io/)**: For handling WebSocket connections in Python.
+- **[Web Serial API](https://developer.chrome.com/docs/capabilities/serial)**: For enabling direct serial communication from the browser.
+- **[Web Bluetooth API](https://developer.chrome.com/docs/capabilities/bluetooth)**: For enabling Bluetooth Low Energy communication from the browser.

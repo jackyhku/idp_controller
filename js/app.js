@@ -413,8 +413,8 @@ class App {
     // Setup shortcut handlers
     setupShortcutHandlers() {
         // Execute shortcut callback
-        this.shortcutsManager.onShortcutExecute = (command) => {
-            this.executeShortcutCommand(command);
+        this.shortcutsManager.onShortcutExecute = (command, lineEnding) => {
+            this.executeShortcutCommand(command, lineEnding);
         };
     }
 
@@ -688,14 +688,25 @@ class App {
     }
 
     // Execute shortcut command
-    async executeShortcutCommand(command) {
+    async executeShortcutCommand(command, explicitLineEnding = null) {
         if (!this.activeManager.isConnected) {
             this.uiManager.showNotification('Not connected to a device', 'warning');
             return;
         }
 
         try {
-            const lineEnding = this.uiManager.getLineEnding();
+            // Use explicit line ending if provided (even if empty string for None)
+            // Otherwise fall back to global setting (though for shortcuts we likely want explicit)
+            // But if called without arg (e.g. legacy), use global?
+            // Actually our shortcutsManager now always passes it (defaulting to '').
+            // If explicitLineEnding is null/undefined, use global.
+            let lineEnding;
+            if (explicitLineEnding !== null && explicitLineEnding !== undefined) {
+                lineEnding = this.uiManager.resolveLineEnding(explicitLineEnding);
+            } else {
+                lineEnding = this.uiManager.getLineEnding();
+            }
+
             await this.activeManager.write(command, lineEnding);
 
             // Add to UI

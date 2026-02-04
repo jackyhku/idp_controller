@@ -37,6 +37,7 @@ A modern, chatbot-style web application for communicating with ESP32 devices via
 ### ⚡ Customizable Shortcuts
 - **Quick command buttons** at the top of the interface.
 - **Fully customizable** - add, edit, delete, and reorder.
+- **Per-Shortcut Line Endings** - Configure specific line endings (None, LF, CR, CRLF) for each shortcut (independent of global setting).
 - **Import/Export** button configurations as JSON.
 
 ### 💬 Chat-Style Communication

@@ -844,7 +844,18 @@ class UIManager {
 
     // Get line ending setting
     getLineEnding() {
-        return this.elements.lineEnding.value;
+        return this.resolveLineEnding(this.elements.lineEnding.value);
+    }
+
+    // Resolve line ending value to control characters
+    resolveLineEnding(value) {
+        // Map string literals from HTML options to actual control characters
+        const mappings = {
+            '\\n': '\n',
+            '\\r': '\r',
+            '\\r\\n': '\r\n'
+        };
+        return mappings[value] || '';
     }
 
     // Save log to file

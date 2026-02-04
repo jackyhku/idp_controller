@@ -5,7 +5,7 @@ class ShortcutsManager {
         this.modal = null;
         this.shortcutBar = null;
         this.onShortcutExecute = null;
-        
+
         this.initializeElements();
         this.loadShortcuts();
         this.attachEventListeners();
@@ -16,7 +16,7 @@ class ShortcutsManager {
         this.modal = document.getElementById('shortcutModal');
         this.shortcutBar = document.getElementById('shortcutBar');
         this.shortcutsList = document.getElementById('shortcutsList');
-        
+
         this.elements = {
             manageBtn: document.getElementById('manageShortcutsBtn'),
             closeModalBtn: document.getElementById('closeModalBtn'),
@@ -32,32 +32,32 @@ class ShortcutsManager {
     attachEventListeners() {
         // Open modal
         this.elements.manageBtn.addEventListener('click', () => this.openModal());
-        
+
         // Close modal
         this.elements.closeModalBtn.addEventListener('click', () => this.closeModal());
-        
+
         // Click outside modal to close
         this.modal.addEventListener('click', (e) => {
             if (e.target === this.modal) {
                 this.closeModal();
             }
         });
-        
+
         // Add shortcut
         this.elements.addShortcutBtn.addEventListener('click', () => this.addShortcut());
-        
+
         // Save shortcuts
         this.elements.saveShortcutsBtn.addEventListener('click', () => this.saveAndClose());
-        
+
         // Export shortcuts
         this.elements.exportShortcutsBtn.addEventListener('click', () => this.exportShortcuts());
-        
+
         // Import shortcuts
         this.elements.importShortcutsBtn.addEventListener('click', () => this.importShortcuts());
-        
+
         // Reset to defaults
         this.elements.resetShortcutsBtn.addEventListener('click', () => this.resetToDefaults());
-        
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => this.handleKeyboardShortcut(e));
     }
@@ -85,7 +85,8 @@ class ShortcutsManager {
                 icon: '🔄',
                 color: '#e74c3c',
                 hotkey: 'Ctrl+1',
-                order: 1
+                order: 1,
+                lineEnding: ''
             },
             {
                 id: this.generateId(),
@@ -94,7 +95,8 @@ class ShortcutsManager {
                 icon: 'ℹ️',
                 color: '#3498db',
                 hotkey: 'Ctrl+2',
-                order: 2
+                order: 2,
+                lineEnding: ''
             },
             {
                 id: this.generateId(),
@@ -103,7 +105,8 @@ class ShortcutsManager {
                 icon: '📡',
                 color: '#2ecc71',
                 hotkey: 'Ctrl+3',
-                order: 3
+                order: 3,
+                lineEnding: ''
             },
             {
                 id: this.generateId(),
@@ -112,7 +115,8 @@ class ShortcutsManager {
                 icon: '❓',
                 color: '#f39c12',
                 hotkey: 'Ctrl+4',
-                order: 4
+                order: 4,
+                lineEnding: ''
             }
         ];
     }
@@ -130,27 +134,27 @@ class ShortcutsManager {
     // Render shortcut bar
     renderShortcutBar() {
         this.shortcutBar.innerHTML = '';
-        
+
         // Sort by order
         const sorted = [...this.shortcuts].sort((a, b) => a.order - b.order);
-        
+
         sorted.forEach(shortcut => {
             const button = document.createElement('button');
             button.className = 'shortcut-btn';
             button.dataset.id = shortcut.id;
             button.title = `${shortcut.command}${shortcut.hotkey ? ' (' + shortcut.hotkey + ')' : ''}`;
-            
+
             if (shortcut.color) {
                 button.style.borderColor = shortcut.color;
             }
-            
+
             button.innerHTML = `
                 ${shortcut.icon ? `<span>${shortcut.icon}</span>` : ''}
                 <span>${shortcut.label}</span>
             `;
-            
+
             button.addEventListener('click', () => this.executeShortcut(shortcut.id));
-            
+
             this.shortcutBar.appendChild(button);
         });
     }
@@ -159,17 +163,16 @@ class ShortcutsManager {
     executeShortcut(id) {
         const shortcut = this.shortcuts.find(s => s.id === id);
         if (!shortcut) return;
-        
+
         // Visual feedback
         const button = this.shortcutBar.querySelector(`[data-id="${id}"]`);
         if (button) {
             button.classList.add('clicked');
             setTimeout(() => button.classList.remove('clicked'), 300);
         }
-        
-        // Execute command
+
         if (this.onShortcutExecute) {
-            this.onShortcutExecute(shortcut.command);
+            this.onShortcutExecute(shortcut.command, shortcut.lineEnding);
         }
     }
 
@@ -177,10 +180,10 @@ class ShortcutsManager {
     handleKeyboardShortcut(e) {
         // Only handle Ctrl+Number shortcuts
         if (!e.ctrlKey || e.shiftKey || e.altKey) return;
-        
+
         const key = e.key;
         const hotkey = `Ctrl+${key}`;
-        
+
         const shortcut = this.shortcuts.find(s => s.hotkey === hotkey);
         if (shortcut) {
             e.preventDefault();
@@ -202,10 +205,10 @@ class ShortcutsManager {
     // Render shortcuts list in modal
     renderShortcutsList() {
         this.shortcutsList.innerHTML = '';
-        
+
         // Sort by order
         const sorted = [...this.shortcuts].sort((a, b) => a.order - b.order);
-        
+
         sorted.forEach((shortcut, index) => {
             const item = this.createShortcutItem(shortcut, index);
             this.shortcutsList.appendChild(item);
@@ -217,7 +220,7 @@ class ShortcutsManager {
         const div = document.createElement('div');
         div.className = 'shortcut-item';
         div.dataset.id = shortcut.id;
-        
+
         div.innerHTML = `
             <div class="shortcut-item-header">
                 <strong>Shortcut ${index + 1}</strong>
@@ -248,36 +251,49 @@ class ShortcutsManager {
                 Command
                 <input type="text" class="input-command" value="${shortcut.command}" placeholder="e.g., reset">
             </label>
-            <label>
-                Icon (Emoji)
-                <input type="text" class="input-icon" value="${shortcut.icon || ''}" placeholder="e.g., 🔄" maxlength="2">
-            </label>
-            <label>
-                Color
-                <input type="color" class="input-color" value="${shortcut.color || '#3498db'}">
-            </label>
-            <label>
-                Hotkey (Optional)
-                <input type="text" class="input-hotkey" value="${shortcut.hotkey || ''}" placeholder="e.g., Ctrl+1" readonly>
-            </label>
+            <div style="display: flex; gap: 8px;">
+                <label style="flex: 1;">
+                    Icon (Emoji)
+                    <input type="text" class="input-icon" value="${shortcut.icon || ''}" placeholder="e.g., 🔄" maxlength="2">
+                </label>
+                <label style="flex: 1;">
+                    Color
+                    <input type="color" class="input-color" value="${shortcut.color || '#3498db'}" style="height: 38px; padding: 2px;">
+                </label>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <label style="flex: 1;">
+                    Line Ending
+                    <select class="input-line-ending">
+                        <option value="" ${!shortcut.lineEnding ? 'selected' : ''}>None</option>
+                        <option value="\\n" ${shortcut.lineEnding === '\\n' ? 'selected' : ''}>LF (\\n)</option>
+                        <option value="\\r" ${shortcut.lineEnding === '\\r' ? 'selected' : ''}>CR (\\r)</option>
+                        <option value="\\r\\n" ${shortcut.lineEnding === '\\r\\n' ? 'selected' : ''}>CRLF (\\r\\n)</option>
+                    </select>
+                </label>
+                <label style="flex: 1;">
+                    Hotkey (Optional)
+                    <input type="text" class="input-hotkey" value="${shortcut.hotkey || ''}" placeholder="e.g., Ctrl+1" readonly>
+                </label>
+            </div>
         `;
-        
+
         // Attach item event listeners
         const deleteBtn = div.querySelector('.btn-delete');
         deleteBtn.addEventListener('click', () => this.deleteShortcut(shortcut.id));
-        
+
         const moveUpBtn = div.querySelector('.btn-move-up');
         moveUpBtn.addEventListener('click', () => this.moveShortcut(shortcut.id, 'up'));
-        
+
         const moveDownBtn = div.querySelector('.btn-move-down');
         moveDownBtn.addEventListener('click', () => this.moveShortcut(shortcut.id, 'down'));
-        
+
         // Update shortcut on input change
         const inputs = div.querySelectorAll('input');
         inputs.forEach(input => {
             input.addEventListener('change', () => this.updateShortcutFromItem(div, shortcut.id));
         });
-        
+
         return div;
     }
 
@@ -285,11 +301,12 @@ class ShortcutsManager {
     updateShortcutFromItem(itemDiv, id) {
         const shortcut = this.shortcuts.find(s => s.id === id);
         if (!shortcut) return;
-        
+
         shortcut.label = itemDiv.querySelector('.input-label').value;
         shortcut.command = itemDiv.querySelector('.input-command').value;
         shortcut.icon = itemDiv.querySelector('.input-icon').value;
         shortcut.color = itemDiv.querySelector('.input-color').value;
+        shortcut.lineEnding = itemDiv.querySelector('.input-line-ending').value;
         shortcut.hotkey = itemDiv.querySelector('.input-hotkey').value;
     }
 
@@ -302,9 +319,10 @@ class ShortcutsManager {
             icon: '⚡',
             color: '#3498db',
             hotkey: '',
-            order: this.shortcuts.length + 1
+            order: this.shortcuts.length + 1,
+            lineEnding: '' // Default to None
         };
-        
+
         this.shortcuts.push(newShortcut);
         this.renderShortcutsList();
     }
@@ -312,7 +330,7 @@ class ShortcutsManager {
     // Delete shortcut
     deleteShortcut(id) {
         if (!confirm('Are you sure you want to delete this shortcut?')) return;
-        
+
         this.shortcuts = this.shortcuts.filter(s => s.id !== id);
         this.renderShortcutsList();
     }
@@ -321,18 +339,18 @@ class ShortcutsManager {
     moveShortcut(id, direction) {
         const index = this.shortcuts.findIndex(s => s.id === id);
         if (index === -1) return;
-        
+
         if (direction === 'up' && index > 0) {
-            [this.shortcuts[index], this.shortcuts[index - 1]] = 
-            [this.shortcuts[index - 1], this.shortcuts[index]];
+            [this.shortcuts[index], this.shortcuts[index - 1]] =
+                [this.shortcuts[index - 1], this.shortcuts[index]];
         } else if (direction === 'down' && index < this.shortcuts.length - 1) {
-            [this.shortcuts[index], this.shortcuts[index + 1]] = 
-            [this.shortcuts[index + 1], this.shortcuts[index]];
+            [this.shortcuts[index], this.shortcuts[index + 1]] =
+                [this.shortcuts[index + 1], this.shortcuts[index]];
         }
-        
+
         // Update order
         this.shortcuts.forEach((s, i) => s.order = i + 1);
-        
+
         this.renderShortcutsList();
     }
 
@@ -344,11 +362,11 @@ class ShortcutsManager {
             const id = item.dataset.id;
             this.updateShortcutFromItem(item, id);
         });
-        
+
         this.saveShortcuts();
         this.renderShortcutBar();
         this.closeModal();
-        
+
         // Show notification
         if (window.uiManager) {
             window.uiManager.showNotification('Shortcuts saved successfully', 'success');
@@ -365,7 +383,7 @@ class ShortcutsManager {
         a.download = 'esp32-shortcuts.json';
         a.click();
         URL.revokeObjectURL(url);
-        
+
         if (window.uiManager) {
             window.uiManager.showNotification('Shortcuts exported successfully', 'success');
         }
@@ -376,25 +394,25 @@ class ShortcutsManager {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'application/json';
-        
+
         input.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 try {
                     const imported = JSON.parse(event.target.result);
-                    
+
                     if (!Array.isArray(imported)) {
                         throw new Error('Invalid format');
                     }
-                    
+
                     this.shortcuts = imported;
                     this.saveShortcuts();
                     this.renderShortcutsList();
                     this.renderShortcutBar();
-                    
+
                     if (window.uiManager) {
                         window.uiManager.showNotification('Shortcuts imported successfully', 'success');
                     }
@@ -404,10 +422,10 @@ class ShortcutsManager {
                     }
                 }
             };
-            
+
             reader.readAsText(file);
         });
-        
+
         input.click();
     }
 
@@ -416,12 +434,12 @@ class ShortcutsManager {
         if (!confirm('Are you sure you want to reset all shortcuts to defaults? This cannot be undone.')) {
             return;
         }
-        
+
         this.shortcuts = this.getDefaultShortcuts();
         this.saveShortcuts();
         this.renderShortcutsList();
         this.renderShortcutBar();
-        
+
         if (window.uiManager) {
             window.uiManager.showNotification('Shortcuts reset to defaults', 'info');
         }

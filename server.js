@@ -14,7 +14,9 @@ const app = express();
 app.use(cors());
 
 // serve static files from current directory
-app.use(express.static(__dirname));
+const staticPath = path.join(__dirname);
+console.log('Serving static files from:', staticPath);
+app.use(express.static(staticPath));
 
 // Initialize HTTP server and Socket.IO
 const server = http.createServer(app);

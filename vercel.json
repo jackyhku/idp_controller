@@ -19,6 +19,10 @@
             "dest": "/server.js"
         },
         {
+            "src": "/socket.io/(.*)",
+            "dest": "/server.js"
+        },
+        {
             "src": "/(.*)",
             "status": 404
         }

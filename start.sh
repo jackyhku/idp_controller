@@ -1,14 +1,22 @@
 #!/bin/bash
-# Start WebSerial Server properly with venv
 
-cd "$(dirname "$0")"
+# WebSerial Monitor Start Script (Node.js Version)
 
-if [ -d "venv" ]; then
-    source venv/bin/activate
+echo "Starting WebSerial Monitor..."
+
+# Check if Node.js is installed
+if ! command -v node &> /dev/null
+then
+    echo "Error: Node.js could not be found. Please install Node.js to run this application."
+    exit 1
 fi
 
-# Ensure dependencies are installed (optional, but safe)
-# pip install -r requirements.txt > /dev/null 2>&1
+# Install dependencies if node_modules does not exist
+if [ ! -d "node_modules" ]; then
+    echo "Installing Node.js dependencies..."
+    npm install
+fi
 
-echo "Starting WebSerial Server on port 6011..."
-exec python3 server.py
+# Start the server
+echo "Starting Node.js server..."
+npm start

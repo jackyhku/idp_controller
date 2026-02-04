@@ -60,9 +60,9 @@ This application requires modern browser APIs:
 ### 1. Setup the Web Application
 
 1. Clone this repository
-2. Install Python dependencies (for remote monitoring):
+2. Install Node.js dependencies:
    ```bash
-   pip install flask flask-socketio eventlet
+   npm install
    ```
 3. Run the backend server:
    
@@ -73,9 +73,7 @@ This application requires modern browser APIs:
    
    **Option B: Manual Start**
    ```bash
-   # Activate virtual environment first
-   source venv/bin/activate
-   python server.py
+   node server.js
    ```
    *The server runs on port 6011 by default.*
    
@@ -126,7 +124,8 @@ WebSerial/
 │   ├── remote.js          # Remote monitoring manager
 │   ├── ui.js              # UI logic
 │   └── shortcuts.js       # Shortcuts logic
-├── server.py              # Flask Socket.IO backend
+├── server.js              # Node.js Express + Socket.IO server
+├── package.json           # Node.js dependencies
 ├── config.js              # Configuration defaults
 └── README.md              # Documentation
 ```
@@ -158,6 +157,6 @@ This project is licensed under the **MIT License**.
 ## Acknowledgements
 
 - **[Socket.IO](https://socket.io/)**: For real-time bidirectional event-based communication.
-- **[Flask-SocketIO](https://flask-socketio.readthedocs.io/)**: For handling WebSocket connections in Python.
+- **[Express](https://expressjs.com/)**: Fast, unopinionated, minimalist web framework for Node.js.
 - **[Web Serial API](https://developer.chrome.com/docs/capabilities/serial)**: For enabling direct serial communication from the browser.
 - **[Web Bluetooth API](https://developer.chrome.com/docs/capabilities/bluetooth)**: For enabling Bluetooth Low Energy communication from the browser.

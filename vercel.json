@@ -2,11 +2,7 @@
     "version": 2,
     "builds": [
         {
-            "src": "package.json",
-            "use": "@vercel/node"
-        },
-        {
-            "src": "index.html",
+            "src": "**/*",
             "use": "@vercel/static"
         }
     ],
@@ -15,16 +11,8 @@
             "handle": "filesystem"
         },
         {
-            "src": "/api/(.*)",
-            "dest": "/server.js"
-        },
-        {
-            "src": "/socket.io/(.*)",
-            "dest": "/server.js"
-        },
-        {
             "src": "/(.*)",
-            "status": 404
+            "dest": "/index.html"
         }
     ]
 }

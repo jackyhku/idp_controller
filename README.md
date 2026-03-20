@@ -62,6 +62,23 @@ Health endpoint:
 
 - `http://127.0.0.1:6011/api/health`
 
+## Deploy on Vercel
+
+This project is ready for static deployment on Vercel.
+
+### Steps
+
+1. Push this repository to GitHub.
+2. In Vercel, import the GitHub repository.
+3. Keep default project settings (no environment variables required).
+4. Deploy.
+
+### Notes
+
+- Web Serial works only in supported browsers (Chrome/Edge).
+- Your deployed Vercel URL is HTTPS, which is required for Web Serial API.
+- `server.js` is for local Node hosting; Vercel deployment uses static files from `index.html`, `css/`, and `js/`.
+
 ## Network access
 
 The server binds to `0.0.0.0` on port `6011`, so other devices in the same network can access it using:

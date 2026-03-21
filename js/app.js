@@ -123,17 +123,19 @@ class App {
         const command = button.dataset.command;
         if (!command) return;
 
-        this.stopHoldCommand();
+        this.stopHoldCommand(false);
         this.activeButton = button;
         button.classList.add('active');
 
         this.sendCommand(command);
         this.holdInterval = setInterval(() => {
             this.sendCommand(command);
-        }, 33);
+        }, 500);
     }
 
-    stopHoldCommand() {
+    stopHoldCommand(sendStopCommand = true) {
+        const wasHolding = Boolean(this.holdInterval || this.activeButton);
+
         if (this.holdInterval) {
             clearInterval(this.holdInterval);
             this.holdInterval = null;
@@ -142,6 +144,10 @@ class App {
         if (this.activeButton) {
             this.activeButton.classList.remove('active');
             this.activeButton = null;
+        }
+
+        if (sendStopCommand && wasHolding && this.serialManager.isConnected) {
+            this.sendCommand('Z');
         }
     }
 

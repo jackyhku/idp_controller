@@ -1,4 +1,4 @@
-# IDP - Web based Car Controller v0.1
+# IDP - Web based Car Controller v0.2
 
 A lightweight web controller for Arduino car projects using Web Serial (USB or Bluetooth SPP serial port).
 
@@ -26,14 +26,18 @@ The paired module may appear with your custom module name or as **SPP Dev**.
 
 ## Controls and command mapping
 
-### Hold-to-send commands (every 33ms while pressed)
+### Hold-to-send commands (every 0.5s while pressed)
 
-- Up: `AZ`
-- Down: `EZ`
-- Left: `HZ`
-- Right: `BZ`
-- Clockwise: `CZ`
-- Anticlockwise: `GZ`
+- Up: `A`
+- Down: `E`
+- Left: `H`
+- Right: `B`
+- Clockwise: `C`
+- Anticlockwise: `G`
+
+When you release a direction/turn button, the app sends `Z` once as stop command.
+
+Example: hold Up for ~3 seconds sends `AAAAAA`, then on release sends `Z` → `AAAAAAZ`.
 
 ### Single-tap commands
 
@@ -95,4 +99,4 @@ The server binds to `0.0.0.0` on port `6011`, so other devices in the same netwo
 
 ## Version
 
-- `v0.1`
+- `v0.2`

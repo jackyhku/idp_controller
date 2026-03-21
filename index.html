@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELEC3848 IDP - Web based Car Controller v0.1</title>
+    <title>ELEC3848 IDP - Web based Car Controller v0.2</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
     <main class="app">
-        <h1>ELEC3848 IDP - Web based Car Controller v0.1</h1>
+        <h1>ELEC3848 IDP - Web based Car Controller v0.2</h1>
         <section class="card">
             <h2>About This App</h2>
             <p class="hint">This web app controls your Arduino car over Web Serial and shows the latest A0 reading in real time.</p>
@@ -29,25 +29,25 @@
             <h2>Motor Control</h2>
             <div class="control-grid" id="controlGrid">
                 <div class="spacer"></div>
-                <button class="control-btn" data-command="AZ">↑</button>
+                <button class="control-btn" data-command="A">↑</button>
                 <div class="spacer"></div>
 
-                <button class="control-btn" data-command="HZ">←</button>
+                <button class="control-btn" data-command="H">←</button>
                 <div class="center">Hold button to move</div>
-                <button class="control-btn" data-command="BZ">→</button>
+                <button class="control-btn" data-command="B">→</button>
 
                 <div class="spacer"></div>
-                <button class="control-btn" data-command="EZ">↓</button>
+                <button class="control-btn" data-command="E">↓</button>
                 <div class="spacer"></div>
             </div>
 
             <div class="action-grid">
-                <button class="btn action-btn hold-btn" data-command="CZ">Clockwise</button>
-                <button class="btn action-btn hold-btn" data-command="GZ">Anticlockwise</button>
+                <button class="btn action-btn hold-btn" data-command="C">Clockwise</button>
+                <button class="btn action-btn hold-btn" data-command="G">Anticlockwise</button>
                 <button class="btn action-btn" data-command="L">High Speed</button>
                 <button class="btn action-btn" data-command="M">Low Speed</button>
             </div>
-            <p class="hint">While holding a direction button, command is sent every 33ms.</p>
+            <p class="hint">While holding direction/turn, command is sent every 0.5s. On release, app sends Z once.</p>
         </section>
 
         <section class="card a0-card">

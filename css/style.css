@@ -158,3 +158,217 @@ h2 {
     font-size: 36px;
     font-weight: 700;
 }
+
+.custom-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.custom-header h2 {
+    margin: 0;
+}
+
+.custom-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.custom-btn {
+    min-height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    touch-action: none;
+}
+
+.custom-btn .custom-label {
+    font-weight: 700;
+}
+
+.custom-btn .custom-command {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    width: min(760px, 100%);
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 10px;
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
+.modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.custom-settings-list {
+    display: grid;
+    gap: 10px;
+}
+
+.custom-setting-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    background: #f6fbff;
+}
+
+.custom-setting-item h4 {
+    margin: 0 0 8px;
+}
+
+.custom-setting-row {
+    display: grid;
+    gap: 8px;
+}
+
+.custom-setting-row + .custom-setting-row {
+    margin-top: 8px;
+}
+
+.custom-setting-row.two-col {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-full {
+    width: 100%;
+}
+
+.compact-controls {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+}
+
+.field-interval {
+    max-width: 220px;
+}
+
+.inline-switch {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    min-height: 38px;
+    color: var(--text);
+}
+
+.inline-switch input {
+    width: 16px;
+    height: 16px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.field input,
+.field select {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+}
+
+.command-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.command-input-row input[type="text"] {
+    flex: 1;
+}
+
+.inline-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.field-checkbox {
+    justify-content: center;
+}
+
+.field-checkbox input {
+    width: 16px;
+    height: 16px;
+}
+
+.modal-actions {
+    margin-top: 10px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 560px) {
+    .modal-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .modal-header-actions {
+        justify-content: stretch;
+    }
+
+    .modal-header-actions .btn {
+        width: 100%;
+    }
+
+    .custom-setting-row.two-col,
+    .compact-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .field-interval {
+        max-width: 100%;
+    }
+}

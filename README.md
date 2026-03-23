@@ -1,4 +1,4 @@
-# IDP - Web based Car Controller v0.2
+# IDP - Web based Car Controller v0.3
 
 A lightweight web controller for Arduino car projects using Web Serial (USB or Bluetooth SPP serial port).
 
@@ -51,6 +51,18 @@ Example: hold Up for ~3 seconds sends `AAAAAA`, then on release sends `Z` → `A
   - plain numeric values (for example `2`).
 - `--` is the initial placeholder before the first reading is received.
 
+## Custom buttons (new in v0.3)
+
+- Four extra custom buttons are available in the app.
+- Each button can be configured in **Settings** with:
+  - button label (default: `Button 1` ... `Button 4`),
+  - press command,
+  - release command (sent when button press ends),
+  - optional newline checkbox for both press/release commands (Arduino IDE style),
+  - repeat while pressed,
+  - repeat interval (ms).
+- The command configured for each custom button is shown directly on the button.
+
 ## Local run
 
 ```bash
@@ -99,4 +111,4 @@ The server binds to `0.0.0.0` on port `6011`, so other devices in the same netwo
 
 ## Version
 
-- `v0.2`
+- `v0.3`

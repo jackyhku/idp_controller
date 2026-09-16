@@ -1,4 +1,4 @@
-# IDP - Web based Car Controller v0.3
+# IDP - Web based Car Controller v0.4
 
 A lightweight web controller for Arduino car projects using Web Serial (USB or Bluetooth SPP serial port).
 
@@ -37,7 +37,9 @@ The paired module may appear with your custom module name or as **SPP Dev**.
 
 When you release a direction/turn button, the app sends `Z` once as stop command.
 
-Example: hold Up for ~3 seconds sends `AAAAAA`, then on release sends `Z` → `AAAAAAZ`.
+Every command is sent with a trailing newline (e.g. `A` + `\n`), so the Arduino firmware can reliably read one complete command at a time with `Serial.readStringUntil('\n')`.
+
+Example: hold Up for ~3 seconds sends `A\nA\nA\nA\nA\nA\n`, then on release sends `Z\n`.
 
 ### Single-tap commands
 
@@ -58,7 +60,7 @@ Example: hold Up for ~3 seconds sends `AAAAAA`, then on release sends `Z` → `A
   - button label (default: `Button 1` ... `Button 4`),
   - press command,
   - release command (sent when button press ends),
-  - optional newline checkbox for both press/release commands (Arduino IDE style),
+  - a trailing newline is added to press/release commands by default; the checkbox turns it off if needed (Arduino IDE style),
   - repeat while pressed,
   - repeat interval (ms).
 - The command configured for each custom button is shown directly on the button.
@@ -111,4 +113,4 @@ The server binds to `0.0.0.0` on port `6011`, so other devices in the same netwo
 
 ## Version
 
-- `v0.3`
+- `v0.4`

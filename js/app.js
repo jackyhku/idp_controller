@@ -34,10 +34,10 @@ class App {
 
     getDefaultCustomButtons() {
         return [
-            { label: 'Button 1', command: 'N', commandAddNewline: false, releaseCommand: '', releaseCommandAddNewline: false, repeatEnabled: false, repeatIntervalMs: 500 },
-            { label: 'Button 2', command: 'O', commandAddNewline: false, releaseCommand: '', releaseCommandAddNewline: false, repeatEnabled: false, repeatIntervalMs: 500 },
-            { label: 'Button 3', command: 'P', commandAddNewline: false, releaseCommand: '', releaseCommandAddNewline: false, repeatEnabled: false, repeatIntervalMs: 500 },
-            { label: 'Button 4', command: 'Q', commandAddNewline: false, releaseCommand: '', releaseCommandAddNewline: false, repeatEnabled: false, repeatIntervalMs: 500 }
+            { label: 'Button 1', command: 'N', commandAddNewline: true, releaseCommand: '', releaseCommandAddNewline: true, repeatEnabled: false, repeatIntervalMs: 500 },
+            { label: 'Button 2', command: 'O', commandAddNewline: true, releaseCommand: '', releaseCommandAddNewline: true, repeatEnabled: false, repeatIntervalMs: 500 },
+            { label: 'Button 3', command: 'P', commandAddNewline: true, releaseCommand: '', releaseCommandAddNewline: true, repeatEnabled: false, repeatIntervalMs: 500 },
+            { label: 'Button 4', command: 'Q', commandAddNewline: true, releaseCommand: '', releaseCommandAddNewline: true, repeatEnabled: false, repeatIntervalMs: 500 }
         ];
     }
 
@@ -51,9 +51,9 @@ class App {
                 this.customButtonsConfig = parsed.map((item, index) => ({
                     label: (item.label || `Button ${index + 1}`).toString(),
                     command: (item.command || '').toString(),
-                    commandAddNewline: Boolean(item.commandAddNewline),
+                    commandAddNewline: item.commandAddNewline !== false,
                     releaseCommand: (item.releaseCommand || '').toString(),
-                    releaseCommandAddNewline: Boolean(item.releaseCommandAddNewline),
+                    releaseCommandAddNewline: item.releaseCommandAddNewline !== false,
                     repeatEnabled: Boolean(item.repeatEnabled),
                     repeatIntervalMs: Number(item.repeatIntervalMs) > 0 ? Number(item.repeatIntervalMs) : 500
                 }));
@@ -222,7 +222,7 @@ class App {
         }
     }
 
-    async sendCommand(command, addLineEnding = '') {
+    async sendCommand(command, addLineEnding = '\n') {
         if (!this.serialManager.isConnected) {
             this.elements.lastLine.textContent = 'Please connect first.';
             return;

@@ -4,13 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELEC3848 IDP - Web based Car Controller v0.3</title>
+    <title>ELEC3848 IDP - Web based Car Controller v0.4</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
     <main class="app">
-        <h1>ELEC3848 IDP - Web based Car Controller v0.3</h1>
+        <h1>ELEC3848 IDP - Web based Car Controller v0.4</h1>
         <section class="card">
             <h2>About This App</h2>
             <p class="hint">This web app controls your Arduino car over Web Serial and shows the latest A0 reading in real time.</p>
@@ -47,7 +47,7 @@
                 <button class="btn action-btn" data-command="L">High Speed</button>
                 <button class="btn action-btn" data-command="M">Low Speed</button>
             </div>
-            <p class="hint">While holding direction/turn, command is sent every 0.5s. On release, app sends Z once.</p>
+            <p class="hint">While holding direction/turn, command is sent every 0.5s. On release, app sends Z once. Every command is sent with a trailing newline (\n) so the car firmware reads one complete command at a time.</p>
         </section>
 
         <section class="card a0-card">

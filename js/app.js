@@ -1,10 +1,13 @@
 class App {
     constructor() {
         this.serialManager = new SerialManager();
+        this.bluetoothManager = new BluetoothManager();
+        this.activeMode = this.loadConnectionMode(); // 'serial' or 'bluetooth'
         this.holdInterval = null;
         this.activeButton = null;
         this.lastA0Value = null;
         this.customButtonsKey = 'idp-custom-buttons-v1';
+        this.modeKey = 'idp-connection-mode';
         this.customButtonStates = new Map();
         this.customButtonsConfig = this.getDefaultCustomButtons();
 
@@ -12,6 +15,8 @@ class App {
             selectPortBtn: document.getElementById('selectPortBtn'),
             connectBtn: document.getElementById('connectBtn'),
             connectionStatus: document.getElementById('connectionStatus'),
+            serialModeBtn: document.getElementById('serialModeBtn'),
+            bleModeBtn: document.getElementById('bleModeBtn'),
             controlButtons: document.querySelectorAll('.control-btn'),
             holdButtons: document.querySelectorAll('.hold-btn'),
             actionButtons: document.querySelectorAll('.action-btn'),
@@ -29,7 +34,52 @@ class App {
         this.loadCustomButtonsConfig();
         this.renderCustomButtons();
         this.setupSerialHandlers();
+        this.setupBluetoothHandlers();
+        this.updateModeUI();
         this.setupUiHandlers();
+    }
+
+    // Connection mode (Serial vs Bluetooth BLE)
+    getActiveManager() {
+        return this.activeMode === 'bluetooth' ? this.bluetoothManager : this.serialManager;
+    }
+
+    loadConnectionMode() {
+        return localStorage.getItem(this.modeKey) === 'bluetooth' ? 'bluetooth' : 'serial';
+    }
+
+    saveConnectionMode() {
+        localStorage.setItem(this.modeKey, this.activeMode);
+    }
+
+    async setActiveMode(mode) {
+        if ((mode !== 'serial' && mode !== 'bluetooth') || this.activeMode === mode) return;
+
+        const currentManager = this.getActiveManager();
+        if (currentManager.isConnected) {
+            await currentManager.disconnect();
+        }
+
+        this.activeMode = mode;
+        this.saveConnectionMode();
+        this.updateModeUI();
+
+        this.elements.connectBtn.disabled = true;
+        this.elements.lastLine.textContent = mode === 'bluetooth'
+            ? 'Bluetooth (BLE 4.0) mode. Select your BLE device to continue.'
+            : 'Serial mode. Select a serial port to continue.';
+    }
+
+    updateModeUI() {
+        const isBle = this.activeMode === 'bluetooth';
+        this.elements.serialModeBtn.classList.toggle('active', !isBle);
+        this.elements.bleModeBtn.classList.toggle('active', isBle);
+        this.elements.selectPortBtn.textContent = isBle ? 'Select BLE Device' : 'Serial Port';
+
+        const manager = this.getActiveManager();
+        if (manager.isConnected) {
+            this.updateConnectionState(true, manager);
+        }
     }
 
     getDefaultCustomButtons() {
@@ -69,7 +119,7 @@ class App {
 
     setupSerialHandlers() {
         this.serialManager.onConnectionChange = (connected) => {
-            this.updateConnectionState(connected);
+            this.updateConnectionState(connected, this.serialManager);
         };
 
         this.serialManager.onDataReceived = (text) => {
@@ -81,28 +131,63 @@ class App {
         };
     }
 
+    setupBluetoothHandlers() {
+        this.bluetoothManager.onConnectionChange = (connected) => {
+            this.updateConnectionState(connected, this.bluetoothManager);
+        };
+
+        this.bluetoothManager.onDataReceived = (text) => {
+            this.handleIncomingSerial(text);
+        };
+
+        this.bluetoothManager.onError = (error) => {
+            this.elements.lastLine.textContent = `Bluetooth error: ${error.message}`;
+        };
+    }
+
     setupUiHandlers() {
+        this.elements.serialModeBtn.addEventListener('click', () => this.setActiveMode('serial'));
+        this.elements.bleModeBtn.addEventListener('click', () => this.setActiveMode('bluetooth'));
+
         this.elements.selectPortBtn.addEventListener('click', async () => {
+            const manager = this.getActiveManager();
             try {
-                await this.serialManager.requestPort();
-                this.elements.connectBtn.disabled = false;
-                this.elements.lastLine.textContent = 'Port selected. Ready to connect.';
+                if (this.activeMode === 'bluetooth') {
+                    if (!manager.isSupported()) {
+                        throw new Error('Web Bluetooth is not supported in this browser. Please use Chrome or Edge.');
+                    }
+                    await manager.requestDevice();
+                    const deviceInfo = manager.getDeviceInfo();
+                    this.elements.connectBtn.disabled = false;
+                    this.elements.lastLine.textContent = `BLE device selected: ${deviceInfo.name}. Ready to connect.`;
+                } else {
+                    await manager.requestPort();
+                    this.elements.connectBtn.disabled = false;
+                    this.elements.lastLine.textContent = 'Port selected. Ready to connect.';
+                }
             } catch (error) {
-                if (error.message !== 'No port selected') {
+                if (error.message !== 'No port selected' && error.message !== 'No device selected') {
                     this.elements.lastLine.textContent = error.message;
                 }
             }
         });
 
         this.elements.connectBtn.addEventListener('click', async () => {
-            if (this.serialManager.isConnected) {
-                await this.serialManager.disconnect();
+            const manager = this.getActiveManager();
+
+            if (manager.isConnected) {
+                await manager.disconnect();
                 return;
             }
 
             try {
+                if (this.activeMode === 'bluetooth' && !manager.device) {
+                    this.elements.lastLine.textContent = 'Please select a BLE device first.';
+                    return;
+                }
+
                 this.elements.connectionStatus.textContent = 'Connecting...';
-                await this.serialManager.connect();
+                await manager.connect();
             } catch (error) {
                 this.elements.connectionStatus.textContent = 'Disconnected';
                 this.elements.connectionStatus.className = 'status disconnected';
@@ -168,9 +253,13 @@ class App {
         document.addEventListener('pointerup', () => this.stopAllCustomCommands());
     }
 
-    updateConnectionState(connected) {
+    updateConnectionState(connected, manager = this.getActiveManager()) {
         if (connected) {
-            this.elements.connectionStatus.textContent = 'Connected';
+            let label = manager === this.bluetoothManager ? 'Bluetooth (BLE)' : 'Serial';
+            if (manager === this.bluetoothManager && manager.device) {
+                label += `: ${manager.device.name || 'Unknown device'}`;
+            }
+            this.elements.connectionStatus.textContent = `Connected (${label})`;
             this.elements.connectionStatus.className = 'status connected';
             this.elements.connectBtn.textContent = 'Disconnect';
             return;
@@ -186,7 +275,7 @@ class App {
     startHoldCommand(button, event) {
         event.preventDefault();
 
-        if (!this.serialManager.isConnected) {
+        if (!this.getActiveManager().isConnected) {
             this.elements.lastLine.textContent = 'Please connect first.';
             return;
         }
@@ -217,19 +306,20 @@ class App {
             this.activeButton = null;
         }
 
-        if (sendStopCommand && wasHolding && this.serialManager.isConnected) {
+        if (sendStopCommand && wasHolding && this.getActiveManager().isConnected) {
             this.sendCommand('Z');
         }
     }
 
     async sendCommand(command, addLineEnding = '\n') {
-        if (!this.serialManager.isConnected) {
+        const manager = this.getActiveManager();
+        if (!manager.isConnected) {
             this.elements.lastLine.textContent = 'Please connect first.';
             return;
         }
 
         try {
-            await this.serialManager.write(command, addLineEnding);
+            await manager.write(command, addLineEnding);
         } catch (error) {
             this.stopHoldCommand();
             this.elements.lastLine.textContent = `Send failed: ${error.message}`;
@@ -362,7 +452,7 @@ class App {
         const config = this.customButtonsConfig[index];
         if (!config) return;
 
-        if (!this.serialManager.isConnected) {
+        if (!this.getActiveManager().isConnected) {
             this.elements.lastLine.textContent = 'Please connect first.';
             return;
         }
@@ -402,7 +492,7 @@ class App {
         this.customButtonStates.delete(index);
 
         const config = this.customButtonsConfig[index];
-        if (config && config.releaseCommand && this.serialManager.isConnected) {
+        if (config && config.releaseCommand && this.getActiveManager().isConnected) {
             this.sendCommand(config.releaseCommand, config.releaseCommandAddNewline ? '\n' : '');
         }
     }

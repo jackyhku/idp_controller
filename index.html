@@ -4,20 +4,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELEC3848 IDP - Web based Car Controller v0.4</title>
+    <title>ELEC3848 IDP - Web based Car Controller v0.5</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
     <main class="app">
-        <h1>ELEC3848 IDP - Web based Car Controller v0.4</h1>
+        <h1>ELEC3848 IDP - Web based Car Controller v0.5</h1>
         <section class="card">
             <h2>About This App</h2>
-            <p class="hint">This web app controls your Arduino car over Web Serial and shows the latest A0 reading in real time.</p>
-            <p class="hint"><strong>Bluetooth reminder:</strong> Pair your Bluetooth module in system settings first (Windows/macOS/Linux). After pairing, open <strong>Serial Port</strong> and you should see the paired device in the port list with your modified module name or as <strong>SPP Dev</strong>.</p>
+            <p class="hint">This web app controls your Arduino car over Web Serial or Bluetooth Low Energy (BLE 4.0) and shows the latest A0 reading in real time.</p>
+            <p class="hint"><strong>Serial / SPP 2.0:</strong> Pair your Bluetooth module in system settings first (Windows/macOS/Linux). After pairing, open <strong>Serial Port</strong> and you should see the paired device in the port list with your modified module name or as <strong>SPP Dev</strong>.</p>
+            <p class="hint"><strong>BLE 4.0 (e.g. BT-04 / HM-10):</strong> No system pairing needed — switch the mode to <strong>Bluetooth (BLE 4.0)</strong>, tap <strong>Select BLE Device</strong> and choose your module. The app auto-detects the UART service (Nordic UART, HM-10/BT-04 style, or any generic UART characteristic).</p>
         </section>
 
         <section class="card connection-card">
+            <div class="mode-switch" role="tablist" aria-label="Connection mode">
+                <button id="serialModeBtn" class="mode-btn active" data-mode="serial" role="tab">
+                    <span>Serial</span>
+                    <span class="mode-subtitle">USB / SPP 2.0</span>
+                </button>
+                <button id="bleModeBtn" class="mode-btn" data-mode="bluetooth" role="tab">
+                    <span>Bluetooth</span>
+                    <span class="mode-subtitle">BLE 4.0</span>
+                </button>
+            </div>
             <div class="row">
                 <button id="selectPortBtn" class="btn">Serial Port</button>
                 <button id="connectBtn" class="btn btn-primary" disabled>Connect</button>
@@ -87,6 +98,7 @@
     </div>
 
     <script src="js/serial.js"></script>
+    <script src="js/bluetooth.js"></script>
     <script src="js/app.js"></script>
 </body>
 

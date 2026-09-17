@@ -1,4 +1,4 @@
-# IDP - Web based Car Controller v0.4
+# IDP - Web based Car Controller v0.5
 
 A lightweight web controller for Arduino car projects using Web Serial (USB or Bluetooth SPP serial port).
 
@@ -23,6 +23,21 @@ Before using Bluetooth in this app:
 3. Select the paired serial device from the port picker.
 
 The paired module may appear with your custom module name or as **SPP Dev**.
+
+### BLE 4.0 mode (no pairing required)
+
+The app has a connection mode switch at the top: **Serial (USB / SPP 2.0)** and **Bluetooth (BLE 4.0)**.
+
+For BLE 4.0 UART modules (e.g. BT-04 / BT-04A, HM-10) or an ESP32 advertising the Nordic UART Service:
+
+1. Switch the mode to **Bluetooth (BLE 4.0)**.
+2. Click **Select BLE Device** and pick your module from the browser chooser — no OS-level pairing needed.
+3. Click **Connect**. The app auto-detects the UART service:
+   - Nordic UART Service (ESP32, nRF modules)
+   - HM-10 / BT-04 style service (FFE0/FFE1)
+   - Any other service with a writable + notifiable characteristic (generic fallback)
+
+Received data (e.g. `A0: 512`) is parsed the same way as in Serial mode.
 
 ## Controls and command mapping
 
@@ -113,4 +128,4 @@ The server binds to `0.0.0.0` on port `6011`, so other devices in the same netwo
 
 ## Version
 
-- `v0.4`
+- `v0.5`
